@@ -2,41 +2,43 @@
 
 Last verified: **October 16, 2026** (local unit suite, type check, build and
 chromium browser runs on `fix/editor-defects-3`; full three-engine browser CI on
-PRs #107–#110; see below).
+PRs #107–#112; production rollout and CORS preflight checked; see below).
 
 ## Current delivery — October 16
 
-All October 15–16 web work is pushed as a stack of pull requests against `main`,
-each stacked on the one before. None is merged yet: merging was left to the
-owner, and Firebase App Hosting deploys `main` only, so **none of it is live**.
+All October 15–16 web work is **merged and live**. The owner merged the stack
+in order at 13:16 UTC: #107 (`318575c`), #108 (`86373ba`), #109 (`d40e729`),
+#110 (`9111859`) and #112 (`7a10d82`). Each merge got its own App Hosting
+rollout, and all five reported success. The live app serves build
+`1792156652723`, and its bundle contains strings from both #107 and #112.
 
-| PR | Branch | Content | CI |
-| --- | --- | --- | --- |
-| #107 | `fix/sibling-compat-and-open-issues` | Sibling-planner interchange, handoff CORS, issues #101–#104 and #106 | green |
-| #108 | `feat/scan-door-join` | Join stitched scans at a shared door (#103) | green |
-| #109 | `fix/editor-small-bugs` | Six editor defects | green |
-| #110 | `fix/editor-defects-2` | Fifteen bug-hunt defects | green |
-| #112 | `fix/editor-defects-3` | Eighteen more hunt defects, thirteen review fixes, the six problems in the issue #101 comment | see the PR |
+| PR | Content |
+| --- | --- |
+| #107 | Sibling-planner interchange, handoff CORS, issues #102, #104 and #106 |
+| #108 | Join stitched scans at a shared door (#103) |
+| #109 | Six editor defects |
+| #110 | Fifteen bug-hunt defects |
+| #112 | Eighteen more hunt defects, thirteen review fixes, the six problems in the issue #101 comment |
 
-Merge in order 107 → 108 → 109 → 110 → 112. After #107 is live, verify the
-handoff CORS preflight (see the October 15 record). The detail is in
-[NEXT](NEXT.md) and
-[docs/reviews/2026-10-15-sibling-interchange-and-issues.md](docs/reviews/2026-10-15-sibling-interchange-and-issues.md).
-PR #111 (a Docker image built in CI, from an outside contributor) is a feature
-awaiting the owner's review; it also relaxes the dev-dependency audit gate.
+Post-deploy check: `OPTIONS https://app.openplan3d.com/api/handoffs` from
+`https://app.openlandscape3d.com` returns **204** with the origin echoed back and
+the CORS headers. A foreign origin gets no CORS grant. Issues #101–#104 and
+#106 closed on merge.
+
+PR #111, an outside contributor's Docker image built in CI, is a feature
+awaiting the owner's review. It also relaxes the dev-dependency audit gate.
 
 ## Goal and overall state
 
 **Active goal: keep working on all outstanding issues in `NEXT.md`.**
 
 The goal is not complete. The GitHub issues that are bugs (#104, #106) and the
-documentation and stitching requests (#101–#103) are fixed on the PR stack and
-close when #107/#108 merge; #105 (publish the iOS repository) and #30 (billing
-budgets, the Storage rules cutover, native distribution) need the owner. Broader
-fidelity work, physical-device testing, and release/cloud gates remain open.
+documentation and stitching requests (#101–#103) are fixed, merged, deployed
+and closed. #105 (publish the iOS repository) and #30 (billing budgets, the
+Storage rules cutover, native distribution) need the owner. Broader fidelity
+work, physical-device testing, and release/cloud gates remain open.
 
-Web `main` is at `d68cadf` (merged PR #100, MCP tool annotations); the PR stack
-above sits on it.
+Web `main` is at `7a10d82` (the merge of #112).
 
 This is the concise, maintained status page. Update it as implementation,
 validation, blockers, or priorities change during the goal. Keep the full scope
@@ -49,7 +51,7 @@ Remote state was checked when preparing this report.
 
 | Repository | Branch | Latest implementation checkpoint | Delivery |
 | --- | --- | --- | --- |
-| Web app: `openPlan3D` | `fix/editor-defects-3` (top of the PR stack) | PRs #107–#110 and #112 on top of `d68cadf` | **Pushed, not merged, not deployed** |
+| Web app: `openPlan3D` | `main` | `7a10d82` — merge of #112, after #107–#110 | **Merged and live** (App Hosting rollouts succeeded October 16) |
 | Native app: `openplan3d-ios` | `marketing/youtube-shorts-drawing` | `f2c6ea1` — marketing Shorts; no native code change in this batch | Clean checkout; the earlier `codex/local-floorplan-render` work (`bdaad71`) is unchanged |
 | Website: `openplan3d-www` | `main` | `dfdb9ec` — lists OpenLandscape3D, OpenKitchen3D and OpenCatio3D, with an FAQ entry on the exchange | **Pushed and live** on openplan3d.com |
 
@@ -60,7 +62,7 @@ Remote state was checked when preparing this report.
   hunt after two-verifier checks, then thirteen fixes from a seven-reviewer pass
   over them (3D viewer materials, colour and framing, snapping, dialogs and
   Escape, exports, blocked storage, room outlines with attached rooms, history
-  and selection). Unit- and browser-tested; not deployed.
+  and selection). Unit- and browser-tested; deployed October 16.
 - **Issue #101 comment (October 16, PR #112):** the six problems an end user
   listed were reproduced against the version live then and fixed where still
   wrong: Duplicate dropping a queued save, exports ignoring hidden layers and
