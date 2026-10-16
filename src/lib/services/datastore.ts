@@ -1,6 +1,7 @@
 import { readProject } from '$lib/utils/projectValidation';
 import type { Project } from '$lib/models/types';
 import { withDatabase, transaction, request, records, readRecord, libraryBackup, notifyLibraryChange } from './localDatabase';
+import { requestPersistentStorage } from './storagePersistence';
 export { PROJECTS_STORAGE_KEY, LIBRARY_CHANGE_KEY } from './localDatabase';
 
 export interface DataStore {
@@ -91,6 +92,8 @@ export function createLocalStore(): DataStore {
         opened.set(id, raw);
         notifyLibraryChange(id);
       });
+      // Committed work can now ask the browser to keep the library; the save never waits.
+      void requestPersistentStorage();
     },
 
     async saveCopy(project, suffix = 'Recovered copy') {
@@ -109,6 +112,7 @@ export function createLocalStore(): DataStore {
         }));
         opened.set(copy.id, JSON.stringify(copy));
         notifyLibraryChange(copy.id);
+        void requestPersistentStorage();
         return copy;
       });
     },

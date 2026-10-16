@@ -1,6 +1,7 @@
 import { readProject } from '$lib/utils/projectValidation';
 import { readSnapshotStorage, writeSnapshotStorage } from '$lib/utils/snapshotStorage';
 import { migrateLegacy, notifyLibraryChange, request, transaction, withDatabase } from './localDatabase';
+import { requestPersistentStorage } from './storagePersistence';
 
 type StringMap = Record<string, string>;
 type Version = { timestamp: number; description: string; data: string; [key: string]: unknown };
@@ -184,6 +185,7 @@ export function prepareLibraryRestore(raw: string, sourceName = 'Library backup'
     }, signal), { migrate: false }).then(result => {
       completed = result;
       for (const project of result.projects) notifyLibraryChange(project.id);
+      void requestPersistentStorage();
       return result;
     }).finally(() => { active = undefined; });
     return active;
