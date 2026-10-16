@@ -135,7 +135,7 @@ Press **V** (Select) and click a wall. The **Wall Properties** panel shows:
 On the canvas, with a wall selected:
 
 - **Move a corner:** drag either end handle. Walls joined at that corner follow.
-  The end snaps to nearby wall ends and walls and, with **Snap to Grid** on,
+  With **Snap to Grid** on, the end snaps to nearby wall ends and walls and
   onto a 0°, 45° or 90° line from the wall's other end — but only while the
   pointer is within about 15 screen pixels of that line (at any zoom), so a
   long wall no longer jumps sideways as you drag. Hold **Alt** (Option on a

@@ -359,7 +359,8 @@
   }
 
   function magneticSnap(p: Point, excludeWallIds?: Set<string>): Point & { snappedToEndpoint?: boolean; snappedToWall?: boolean; snappedWallId?: string } {
-    if (!currentFloor) return { x: snap(p.x), y: snap(p.y) };
+    // The top-bar Snap to Grid switch turns the magnet off along with grid and angle snapping.
+    if (!currentFloor || !currentSnapEnabled) return { x: snap(p.x), y: snap(p.y) };
     let best: Point & { snappedToEndpoint?: boolean; snappedToWall?: boolean; snappedWallId?: string } = { x: snap(p.x), y: snap(p.y) };
     let bestDist = MAGNETIC_SNAP / zoom;
     // First pass: snap to endpoints (highest priority)
@@ -2823,10 +2824,9 @@
         {
           const mdx = mousePos.x - draggingWallParallel.startMousePos.x;
           const mdy = mousePos.y - draggingWallParallel.startMousePos.y;
-          // Snap delta to grid
-          const snapStep = currentSnapToGrid ? currentGridSize : SNAP;
-          const dx = Math.round(mdx / snapStep) * snapStep;
-          const dy = Math.round(mdy / snapStep) * snapStep;
+          // Snap the delta like a point: to the snap step, or not at all with Snap to Grid off
+          const dx = snap(mdx);
+          const dy = snap(mdy);
           // Set wall positions from original + offset
           const newStart = {
             x: draggingWallParallel.origStart.x + dx,
@@ -2849,9 +2849,8 @@
       }
     }
     if (draggingMultiSelect && currentFloor) {
-      const mSnapStep = currentSnapToGrid ? currentGridSize : SNAP;
-      const dx = Math.round((mousePos.x - draggingMultiSelect.startMousePos.x) / mSnapStep) * mSnapStep;
-      const dy = Math.round((mousePos.y - draggingMultiSelect.startMousePos.y) / mSnapStep) * mSnapStep;
+      const dx = snap(mousePos.x - draggingMultiSelect.startMousePos.x);
+      const dy = snap(mousePos.y - draggingMultiSelect.startMousePos.y);
       for (const [id, orig] of draggingMultiSelect.origPositions) {
         if (orig.opening) {
           const wall=currentFloor.walls.find(item => item.id === orig.opening!.wallId);
@@ -2882,9 +2881,8 @@
       }
     }
     if (draggingRoomId && currentFloor && roomDragStartPositions.size > 0) {
-      const rSnapStep = currentSnapToGrid ? currentGridSize : SNAP;
-      const dx = Math.round((mousePos.x - roomDragStartMouse.x) / rSnapStep) * rSnapStep;
-      const dy = Math.round((mousePos.y - roomDragStartMouse.y) / rSnapStep) * rSnapStep;
+      const dx = snap(mousePos.x - roomDragStartMouse.x);
+      const dy = snap(mousePos.y - roomDragStartMouse.y);
       // Rigid move of every boundary wall; a curved wall's control point travels with it.
       for (const [wid, orig] of roomDragStartPositions) moveWallGeometryDuringDrag(wid, translatedWallGeometry(orig, dx, dy));
     }
