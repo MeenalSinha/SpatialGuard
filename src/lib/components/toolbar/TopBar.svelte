@@ -13,6 +13,8 @@
   import { saveConflict, savingCopy, saveCurrentAsCopy } from '$lib/stores/saveStatus';
   import ImportError from '$lib/components/ImportError.svelte';
   import ProjectPackageDialog from '$lib/components/ProjectPackageDialog.svelte';
+  import LibraryRestoreDialog from '$lib/components/LibraryRestoreDialog.svelte';
+  import { isLibraryBackup, LibraryBackupFileError } from '$lib/services/libraryRestore';
   import AssistantShareDialog from '$lib/components/AssistantShareDialog.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { base } from '$app/paths';
@@ -35,6 +37,8 @@
   let importError = $state<string | null>(null);
   let packageError = $state<string | null>(null);
   let packageOpen = $state(false);
+  /** A library backup given to Import JSON opens in Restore library backup instead. */
+  let restoreFile = $state.raw<File | null>(null);
   let assistantShareProject = $state<import('$lib/models/types').Project | null>(null);
 
   let settingsOpen = $state(false);
@@ -313,11 +317,13 @@
           const data = /\.zip$/i.test(file.name)
             ? await extractRoomJsonFromZip(file)
             : JSON.parse(await file.text());
+          if (isLibraryBackup(data)) throw new LibraryBackupFileError();
           return isRoomPlanJson(data)
             ? createProjectFromRoomPlan(data, interchangeProjectName(data, file.name.replace(/\.(json|zip)$/i, '')))
             : data;
         }, 'import', openingLifetime.signal);
       } catch (e: any) {
+        if (e instanceof LibraryBackupFileError) { restoreFile = file; return; }
         const message = e?.message ?? 'Could not read this file.';
         importError = message.includes('No project was imported.') ? message : `${message} No project was imported.`;
       }
@@ -720,6 +726,7 @@
 {/if}
 {#if packageError}<ImportError title={$t('projectToolbar.packageError')} message={packageError} onDismiss={() => packageError = null} />{/if}
 {#if packageOpen}<ProjectPackageDialog onclose={() => packageOpen = false} onimported={openImportedPackage} />{/if}
+{#if restoreFile}<LibraryRestoreDialog file={restoreFile} onclose={() => restoreFile = null} onrestored={async () => {}} />{/if}
 {#if assistantShareProject}<AssistantShareDialog project={assistantShareProject} onclose={() => assistantShareProject = null} />{/if}
 
 <ExportNotice />

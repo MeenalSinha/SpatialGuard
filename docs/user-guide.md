@@ -59,6 +59,10 @@ With no projects yet, a **Welcome** screen offers **Start from Scratch**, **Use
 a Template**, **Import a Plan** ("Load a JSON or RoomPlan file"; this button
 accepts `.json` files only) and a four-step **Quick Tour**. Links at the bottom
 let you **Restore a library backup** or **Import a project package** instead.
+Either JSON backup works with **Import a Plan** and with **Restore a library
+backup**: a project from **Download JSON** opens in the editor, and a file from
+**Download library backup** opens **Restore library backup**, which lists its
+projects before adding them as copies.
 
 ### The editor at a glance
 
@@ -660,7 +664,8 @@ view and try again to include it." It is not printed to a fixed scale; use
   format is described in
   [project-package-v1.md](project-package-v1.md).
 - **Download library backup** — every project in this browser plus version
-  history and previews, restored with **Restore library backup**.
+  history and previews, restored with **Restore library backup** (choosing it
+  in **Import JSON** or **Import a Plan** opens the same dialog).
 
 Do not re-zip or edit a package with another tool; only packages written by
 OpenPlan3D are accepted ("Unsupported ZIP layout. Export a new project package
@@ -769,7 +774,11 @@ project (below).
   OpenCatio3D (`…-openplan3d.json`; see "Plans from OpenKitchen3D,
   OpenLandscape3D and OpenCatio3D" below);
 - a raw Apple RoomPlan `.json`;
-- a RoomPlan `.zip` that contains exactly one `room.json`.
+- a RoomPlan `.zip` that contains exactly one `room.json`;
+- a library backup (`openplan3d-library-backup.json`), which opens **Restore
+  library backup** with that file instead: it lists the projects, and
+  **Restore as copies** adds them to the library while the plan you are
+  editing stays open.
 
 RoomPlan files are converted to walls, doors, windows, rooms and furniture.
 Files that cannot be read show "Couldn't import plan" with the reason, and

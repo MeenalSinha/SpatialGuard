@@ -33,6 +33,24 @@ function singleProject(data: Record<string, unknown>, raw: string): StringMap {
   return projects;
 }
 
+/** A parsed file that holds a whole library: a current backup, or the project map an older release saved. */
+export function isLibraryBackup(data: unknown): boolean {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  const value = data as Record<string, unknown>;
+  if (value.format === 'openplan3d-library') return true;
+  const saved = Object.values(value);
+  return !Array.isArray(value.floors) && saved.length > 0 && saved.every(raw => typeof raw === 'string') &&
+    saved.some(raw => /^\s*\{/.test(raw as string));
+}
+
+/** Thrown by a plan-file reader handed a library backup, so its caller can open Restore library backup with that file. */
+export class LibraryBackupFileError extends Error {
+  constructor() {
+    super('This file is a library backup. Use Restore library backup on the Projects page to add its projects.');
+    this.name = 'LibraryBackupFileError';
+  }
+}
+
 /** JSON.parse alone silently drops repeated keys. Check keys in each object,
  * including escaped spellings, while skipping encoded project/history strings.
  */

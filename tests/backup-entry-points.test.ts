@@ -1,12 +1,20 @@
-import { mockStorage } from './fixtures/indexeddb';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { mockStorage, rawRecords } from './fixtures/indexeddb';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { get } from 'svelte/store';
 import type { Project } from '$lib/models/types';
-import { prepareLibraryRestore } from '$lib/services/libraryRestore';
+import { isLibraryBackup, LibraryBackupFileError, prepareLibraryRestore } from '$lib/services/libraryRestore';
 import { libraryBackup } from '$lib/services/localDatabase';
-import { createLocalStore } from '$lib/services/datastore';
+import { createLocalStore, localStore } from '$lib/services/datastore';
+import { openProject } from '$lib/services/projectOpening';
+import { currentProject, loadProject } from '$lib/stores/project';
+import { initAutoSave, markClean, saveState } from '$lib/stores/saveStatus';
+import { isRoomPlanJson } from '$lib/utils/roomplanValidation';
 import { readProject } from '$lib/utils/projectValidation';
 import { projectServiceMessage } from '$lib/i18n/projectServiceMessages';
+import { roomProject } from './fixtures/project';
+
+vi.mock('$lib/stores/versionHistory', () => ({ saveSnapshot: vi.fn() }));
 
 // Both files were written by the release that was live on 2026-09-29 (d68cadf): a two-floor plan
 // drawn from scratch (walls, a door, an opening, a sliding door, windows, named rooms, text
@@ -81,5 +89,53 @@ describe('Restore library backup', () => {
       expect(restored.floors).toEqual(readProject(JSON.parse(projectFile)).floors);
       expect(await store.getThumbnail(id)).toBe('data:image/jpeg;base64,/9j/4AAQSkZJRg==');
     }
+  });
+});
+
+describe('Import JSON and Import a Plan', () => {
+  // What the editor's Import JSON and the welcome's Import a Plan hand to openProject.
+  const reader = (raw: string) => () => {
+    const data = JSON.parse(raw);
+    if (isLibraryBackup(data)) throw new LibraryBackupFileError();
+    if (isRoomPlanJson(data)) throw new Error('A scan is converted first; not part of these cases.');
+    return data;
+  };
+  let stop: () => void;
+  beforeEach(async () => {
+    loadProject(roomProject()); markClean();
+    await localStore.save(get(currentProject)!);
+    stop = initAutoSave();
+  });
+  afterEach(() => { stop(); markClean(); });
+
+  it.each([
+    ['the September library backup', true, libraryFile],
+    ['a backup from the localStorage releases', true, readFileSync('tests/fixtures/legacy-library-backup.json', 'utf8')],
+    ['a project saved with Download JSON', false, projectFile],
+    ['an interchange file', false, JSON.stringify({ openplanPrepared: true, walls: [] })],
+    ['an empty object', false, '{}'],
+    ['a list', false, '[]'],
+    ['an object of plain text', false, JSON.stringify({ name: 'House' })],
+  ])('treats %s as a library backup: %s', (_kind, expected, raw) => {
+    expect(isLibraryBackup(JSON.parse(raw))).toBe(expected);
+  });
+
+  it('hands a library backup back for Restore without saving or replacing the open plan', async () => {
+    const before = get(currentProject), records = await rawRecords();
+    await expect(openProject(reader(libraryFile), 'import')).rejects.toBeInstanceOf(LibraryBackupFileError);
+    expect(get(currentProject)).toBe(before);
+    expect(await rawRecords()).toEqual(records);
+    expect(get(saveState)).toBe('saved');
+  });
+
+  it('still opens the September project file as a new project with everything on both floors', async () => {
+    const opened = (await openProject(reader(projectFile), 'import'))!;
+    expect(opened.name).toBe('Our house - shell');
+    expect((await createLocalStore().load(opened.id))!.floors).toEqual(readProject(JSON.parse(projectFile)).floors);
+  });
+
+  it('explains where a library backup goes if no restore can open here', () => {
+    const message = `${new LibraryBackupFileError().message} No project was imported.`;
+    expect(projectServiceMessage(message, 'pt')).toBe('Este arquivo é um backup da biblioteca. Use Restaurar backup da biblioteca na página Projetos para adicionar os projetos dele. Nenhum projeto foi importado.');
   });
 });

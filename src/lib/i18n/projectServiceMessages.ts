@@ -26,7 +26,7 @@ const keys: ServiceKey[] = [
   'projectService.backupJSON', 'projectService.backupFile', 'projectService.backupVersion',
   'projectService.backupProjects', 'projectService.backupThumbnails',
   'projectService.backupHistory', 'projectService.backupRecovery', 'projectService.backupEmpty',
-  'projectService.backupPlanFile',
+  'projectService.backupPlanFile', 'projectService.libraryBackupFile',
   'projectService.backupSavedJSON', 'projectService.backupSavedUnreadable',
   'projectService.backupIdMismatch', 'projectService.backupHistoryLimit',
   'projectService.backupHistoryUnreadable', 'projectService.backupPreviewUnsupported',

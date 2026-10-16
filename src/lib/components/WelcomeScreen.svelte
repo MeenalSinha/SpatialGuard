@@ -4,6 +4,7 @@
   import { onDestroy } from 'svelte';
   import { isRoomPlanJson } from '$lib/utils/roomplanValidation';
   import { openProject } from '$lib/services/projectOpening';
+  import { isLibraryBackup, LibraryBackupFileError } from '$lib/services/libraryRestore';
   import ImportError from '$lib/components/ImportError.svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
@@ -14,7 +15,8 @@
   const openingLifetime = new AbortController();
   onDestroy(() => openingLifetime.abort());
 
-  let { onDismiss, onRestoreLibrary, onImportPackage }: { onDismiss: () => void; onRestoreLibrary?: () => void; onImportPackage?: () => void } = $props();
+  /** `onRestoreLibrary` receives the file when Import a Plan was given a library backup. */
+  let { onDismiss, onRestoreLibrary, onImportPackage }: { onDismiss: () => void; onRestoreLibrary?: (file?: File) => void; onImportPackage?: () => void } = $props();
 
   let importError = $state<string | null>(null);
   let showTour = $state(false);
@@ -62,6 +64,8 @@
     try {
       const project = await openProject(async () => {
         const data = JSON.parse(await file.text());
+        // A library backup holds every project: Restore previews it and adds them as copies.
+        if (isLibraryBackup(data)) throw new LibraryBackupFileError();
         return isRoomPlanJson(data)
           ? (await import('$lib/utils/roomplanImport')).createProjectFromRoomPlan(data, (await import('$lib/utils/interchange')).interchangeProjectName(data, file.name.replace(/\.json$/i, '')))
           : data;
@@ -70,6 +74,7 @@
       markSeen();
       goto(`${base}/editor?id=${encodeURIComponent(project.id)}`);
     } catch (error) {
+      if (error instanceof LibraryBackupFileError && onRestoreLibrary) { onRestoreLibrary(file); return; }
       const message = error instanceof Error ? error.message : $t('welcome.fileFailed');
       importError = message.includes('No project was imported.') ? message : `${message} ${$t('welcome.noImport')}`;
     } finally {
@@ -205,7 +210,7 @@
         </button>
       </div>
       {#if onRestoreLibrary}
-        <button onclick={onRestoreLibrary} class="mt-5 text-sm font-semibold text-blue-600 underline">{$t('welcome.restore')}</button>
+        <button onclick={() => onRestoreLibrary?.()} class="mt-5 text-sm font-semibold text-blue-600 underline">{$t('welcome.restore')}</button>
       {/if}
       {#if onImportPackage}
         <button onclick={onImportPackage} class="mt-3 block w-full text-sm font-semibold text-blue-600 underline">{$t('welcome.package')}</button>

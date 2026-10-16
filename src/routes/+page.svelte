@@ -26,6 +26,7 @@
   let thumbnails = $state<Record<string, string | null>>({});
   let showWelcome = $state(false);
   let restoreOpen = $state(false);
+  let restoreFile = $state.raw<File | null>(null);
   let packageOpen = $state(false);
   let loading = $state(true);
   let actionDialog = $state<{ type: 'rename' | 'delete'; id: string; name: string } | null>(null);
@@ -57,7 +58,8 @@
     } finally { loading = false; }
   }
 
-  function openRestore() { showWelcome = false; restoreOpen = true; }
+  /** `file` is a library backup the welcome's Import a Plan was given. */
+  function openRestore(file?: File) { showWelcome = false; restoreFile = file ?? null; restoreOpen = true; }
   function openPackage() { showWelcome = false; packageOpen = true; }
   async function afterRestore() {
     await refreshProjects();
@@ -153,7 +155,7 @@
   <WelcomeScreen onRestoreLibrary={openRestore} onImportPackage={openPackage} onDismiss={() => { showWelcome = false; void withLibraryError(refreshProjects); }} />
 {/if}
 
-{#if restoreOpen}<LibraryRestoreDialog onclose={() => restoreOpen = false} onrestored={afterRestore} />{/if}
+{#if restoreOpen}<LibraryRestoreDialog file={restoreFile} onclose={() => restoreOpen = false} onrestored={afterRestore} />{/if}
 {#if packageOpen}<ProjectPackageDialog onclose={() => packageOpen = false} onimported={afterRestore} />{/if}
 
 <div class="min-h-screen bg-gray-50">
@@ -190,7 +192,7 @@
       <p>{$t('library.local')}</p>
       <div class="flex flex-wrap gap-4">
         {#if !libraryError}<button class="font-semibold text-blue-600 underline" onclick={backupLibrary}>{$t('library.backup')}</button>{/if}
-        <button class="font-semibold text-blue-600 underline" onclick={openRestore}>{$t('library.restore')}</button>
+        <button class="font-semibold text-blue-600 underline" onclick={() => openRestore()}>{$t('library.restore')}</button>
         <button class="font-semibold text-blue-600 underline" onclick={openPackage}>{$t('library.package')}</button>
         <a class="font-semibold text-blue-600 underline" href={USER_GUIDE_URL} target="_blank" rel="noopener">{$t('help.userGuide')}</a>
       </div>

@@ -1,12 +1,13 @@
 <script lang="ts">
   import { t, locale } from '$lib/i18n';
   import { projectServiceMessage } from '$lib/i18n/projectServiceMessages';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { modalDialog, reconcileNativeClose } from '$lib/utils/modalDialog';
   import { prepareLibraryRestore, type LibraryRestorePreview, type RestoreResult } from '$lib/services/libraryRestore';
   import { storageErrorMessage } from '$lib/services/datastore';
 
-  let { onclose, onrestored }: { onclose: () => void; onrestored: () => Promise<void> } = $props();
+  /** `file` is a backup already chosen elsewhere (Import a Plan, Import JSON); it is previewed on open. */
+  let { onclose, onrestored, file = null }: { onclose: () => void; onrestored: () => Promise<void>; file?: File | null } = $props();
   let input = $state<HTMLInputElement>();
   let preview = $state.raw<LibraryRestorePreview | null>(null);
   let result = $state.raw<RestoreResult | null>(null);
@@ -19,17 +20,22 @@
   const lifetime = new AbortController();
   onDestroy(() => { readRequest++; lifetime.abort(); });
 
-  async function selectFile(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
-    if (!file) return;
+  onMount(() => { if (file) void readBackup(file); });
+
+  function selectFile(event: Event) {
+    const chosen = (event.target as HTMLInputElement).files?.[0];
+    if (chosen) void readBackup(chosen);
+  }
+
+  async function readBackup(backup: File) {
     const request = ++readRequest;
-    reading = true; preview = null; result = null; source = null; error = null; filename = file.name;
+    reading = true; preview = null; result = null; source = null; error = null; filename = backup.name;
     if (input) input.value = '';
     try {
-      const raw = await file.text();
+      const raw = await backup.text();
       if (lifetime.signal.aborted || request !== readRequest) return;
       source = raw;
-      preview = prepareLibraryRestore(raw, file.name);
+      preview = prepareLibraryRestore(raw, backup.name);
     } catch (reason) {
       if (!lifetime.signal.aborted && request === readRequest) error = reason instanceof Error ? reason.message : $t('restore.failedRead');
     } finally { if (request === readRequest) reading = false; }

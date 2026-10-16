@@ -1189,6 +1189,7 @@ export const pt = {
   "projectService.backupEmpty": "Este backup não contém projetos nem dados de recuperação.",
   "projectService.backupRepeatedKey": "Este backup repete a chave “{key}”. Nenhum projeto foi restaurado.",
   "projectService.backupPlanFile": "Este é um escaneamento RoomPlan ou um JSON de intercâmbio, não um backup. Abra-o com Importar JSON no editor. Nenhum projeto foi restaurado.",
+  "projectService.libraryBackupFile": "Este arquivo é um backup da biblioteca. Use Restaurar backup da biblioteca na página Projetos para adicionar os projetos dele.",
   "projectService.backupSavedJSON": "Este projeto salvo não contém JSON legível.",
   "projectService.backupSavedUnreadable": "Não foi possível ler este projeto.",
   "projectService.backupIdMismatch": "O identificador do projeto não corresponde à sua entrada na biblioteca.",
