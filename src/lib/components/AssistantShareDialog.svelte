@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from '$lib/i18n';
   import { onDestroy } from 'svelte';
-  import { modalDialog } from '$lib/utils/modalDialog';
+  import { modalDialog, reconcileNativeClose } from '$lib/utils/modalDialog';
   import type { Project } from '$lib/models/types';
   import { ASSISTANT_CONNECTOR_URL, deleteAssistantShare, shareWithAssistant, type AssistantShare } from '$lib/services/assistantShare';
   let { project, onclose }: { project: Project; onclose: () => void } = $props();
@@ -32,8 +32,11 @@
   }
   const expiry = $derived(share ? new Date(share.expiresAt).toLocaleString() : '');
 </script>
+<!-- The server may already hold a share whose secret is shown only here, so a close the
+     browser forces during an upload shows the dialog again instead of losing the share. -->
 <dialog use:modalDialog aria-labelledby="assistant-title" aria-describedby="assistant-description"
   oncancel={(event) => { if (busy) event.preventDefault(); else onclose(); }}
+  onclose={(event) => reconcileNativeClose(event, busy || share !== null, onclose)}
   class="m-auto w-[34rem] max-w-[calc(100vw-2rem)] max-h-[85vh] rounded-2xl bg-white p-0 shadow-2xl backdrop:bg-black/50">
   <div class="flex max-h-[85vh] flex-col text-gray-800">
     <div class="border-b border-gray-100 px-5 py-4">

@@ -2,7 +2,7 @@
   import { t, locale } from '$lib/i18n';
   import { projectServiceMessage } from '$lib/i18n/projectServiceMessages';
   import { onDestroy } from 'svelte';
-  import { modalDialog } from '$lib/utils/modalDialog';
+  import { modalDialog, reconcileNativeClose } from '$lib/utils/modalDialog';
   import { prepareLibraryRestore, type LibraryRestorePreview, type RestoreResult } from '$lib/services/libraryRestore';
   import { storageErrorMessage } from '$lib/services/datastore';
 
@@ -61,6 +61,7 @@
 
 <dialog use:modalDialog aria-labelledby="library-restore-title" aria-describedby="library-restore-description"
   oncancel={(event) => { if (restoring) event.preventDefault(); else onclose(); }}
+  onclose={(event) => reconcileNativeClose(event, restoring, onclose)}
   class="m-auto w-[36rem] max-w-[calc(100vw-2rem)] max-h-[85vh] rounded-2xl bg-white p-0 shadow-2xl backdrop:bg-black/50">
   <div class="flex max-h-[85vh] flex-col text-gray-800">
     <div class="flex items-start justify-between gap-4 border-b border-gray-100 px-5 py-4">

@@ -2,7 +2,7 @@
   import { t, locale } from '$lib/i18n';
   import { projectServiceMessage } from '$lib/i18n/projectServiceMessages';
   import { onDestroy } from 'svelte';
-  import { modalDialog } from '$lib/utils/modalDialog';
+  import { modalDialog, reconcileNativeClose } from '$lib/utils/modalDialog';
   import { prepareProjectPackage } from '$lib/services/projectPackage';
   import { storageErrorMessage } from '$lib/services/datastore';
   /** `onimported` receives the library ID of the imported copy, so the editor can open it. */
@@ -46,6 +46,7 @@
 </script>
 <dialog use:modalDialog aria-labelledby="package-title" aria-describedby="package-description"
   oncancel={(event) => { if (importing) event.preventDefault(); else onclose(); }}
+  onclose={(event) => reconcileNativeClose(event, importing, onclose)}
   class="m-auto w-[36rem] max-w-[calc(100vw-2rem)] max-h-[85vh] rounded-2xl bg-white p-0 shadow-2xl backdrop:bg-black/50">
   <div class="flex max-h-[85vh] flex-col text-gray-800">
     <div class="border-b border-gray-100 px-5 py-4">

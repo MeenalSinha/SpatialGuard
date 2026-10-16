@@ -49,3 +49,35 @@ test('Share with Assistant uploads the open plan and shows its one-time code and
   await expect(dialog).toHaveCount(0);
   check();
 });
+
+test('a share in progress survives repeated Escape and still shows its one-time secret', async ({ page }) => {
+  const check = observe(page); await seed(page);
+  let respond = () => {};
+  const responded = new Promise<void>(resolve => { respond = resolve; });
+  await page.route('**/api/assistant-shares**', async route => {
+    await responded;
+    await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(reply) });
+  });
+  const exportMenu = page.getByRole('button', { name: 'Export', exact: true });
+  const opener = page.getByRole('button', { name: 'Share with Assistant…', exact: true });
+  const dialog = page.getByRole('dialog', { name: 'Share with Assistant', exact: true });
+  await exportMenu.click(); await opener.click();
+  await dialog.getByRole('button', { name: 'Share', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: 'Sharing…', exact: true })).toBeDisabled();
+  // A prevented Escape is honoured once per user activation; the next press closes the
+  // dialog anyway. No assertions between the presses: they can count as activation.
+  for (let press = 0; press < 3; press++) await page.keyboard.press('Escape');
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toHaveAttribute('open', '');
+  respond();
+  await expect(dialog).toContainText(reply.code);
+  await expect(dialog).toContainText(reply.secret);
+  await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await exportMenu.click(); await opener.click();
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Share', exact: true })).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  check();
+});
