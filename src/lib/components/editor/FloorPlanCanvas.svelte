@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t, locale } from '$lib/i18n';
+  import { t, locale, translate } from '$lib/i18n';
   import { connectedWallGroup } from '$lib/utils/scanAlignment';
   import { furnitureName, customModelName } from '$lib/i18n/furnitureNames';
   import { multiSelectionBounds } from '$lib/utils/multiSelectionBounds';
@@ -692,7 +692,7 @@
     ctx.globalAlpha = 1;
 
     ctx.font = 'bold 11px system-ui, sans-serif';
-    const text = isDoor ? 'Click to place door' : 'Click to place window';
+    const text = translate(get(locale), isDoor ? 'canvasHints.placeDoor' : 'canvasHints.placeWindow');
     const tm = ctx.measureText(text);
     const tx = s.x, ty = s.y - thickness / 2 - 24;
     const pw = tm.width + 12, ph = 20;
@@ -1596,7 +1596,7 @@
         }
         // "Extend to wall" tooltip
         ctx.font = 'bold 10px system-ui, sans-serif';
-        const extText = 'Snap to wall';
+        const extText = translate(get(locale), 'canvasHints.snapWall');
         const extTW = ctx.measureText(extText).width;
         ctx.fillStyle = '#ec4899';
         ctx.beginPath();
@@ -4227,27 +4227,27 @@
   {/if}
   {#if currentTool === 'wall' && wallStart}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click to add wall segment · Double-click to finish · C to close loop · Esc to cancel
+      {$t('canvasHints.wall')}
     </div>
   {/if}
   {#if currentPlacingId && currentTool === 'furniture'}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click to place · Scroll or R to rotate ({currentPlacingRotation}°) · Esc to cancel
+      {$t('canvasHints.furniture', { angle: currentPlacingRotation })}
     </div>
   {/if}
   {#if measuring}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click or tap two points to measure · M to exit · Esc to cancel
+      {$t('canvasHints.measure')}
     </div>
   {/if}
   {#if textAnnotationMode}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click to place text label · Esc to cancel
+      {$t('canvasHints.text')}
     </div>
   {/if}
   {#if annotating}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      {annotationStart ? 'Click second point to create annotation' : 'Click first point'} · N to exit · Esc to cancel
+      {$t(annotationStart ? 'canvasHints.annotateEnd' : 'canvasHints.annotateStart')}
     </div>
   {/if}
 
