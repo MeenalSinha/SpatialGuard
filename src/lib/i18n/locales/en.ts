@@ -146,6 +146,8 @@ export const en = {
   "library.backup": "Download library backup",
   "library.restore": "Restore library backup",
   "library.package": "Import project package",
+  "library.storageNote": "This browser may delete saved projects, for example when it runs low on space. Use “{backup}” regularly to keep a copy.",
+  "library.storageNoteDismiss": "Dismiss storage note",
   "library.retry": "Retry loading",
   "library.loadingSaved": "Loading saved projects…",
   "library.empty": "No projects yet",

@@ -146,6 +146,8 @@ export const pt = {
   "library.backup": "Baixar backup da biblioteca",
   "library.restore": "Restaurar backup da biblioteca",
   "library.package": "Importar pacote de projeto",
+  "library.storageNote": "Este navegador pode excluir projetos salvos, por exemplo quando estiver com pouco espaço. Use “{backup}” regularmente para manter uma cópia.",
+  "library.storageNoteDismiss": "Fechar aviso de armazenamento",
   "library.retry": "Tentar carregar novamente",
   "library.loadingSaved": "Carregando projetos salvos…",
   "library.empty": "Nenhum projeto ainda",

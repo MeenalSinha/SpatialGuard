@@ -12,6 +12,7 @@
   import WelcomeScreen from '$lib/components/WelcomeScreen.svelte';
   import LibraryRestoreDialog from '$lib/components/LibraryRestoreDialog.svelte';
   import ProjectPackageDialog from '$lib/components/ProjectPackageDialog.svelte';
+  import LibraryStorageNote from '$lib/components/LibraryStorageNote.svelte';
   import ProjectActionsMenu from '$lib/components/ProjectActionsMenu.svelte';
   import { houseTemplates } from '$lib/utils/houseTemplates';
 
@@ -194,6 +195,7 @@
         <a class="font-semibold text-blue-600 underline" href={USER_GUIDE_URL} target="_blank" rel="noopener">{$t('help.userGuide')}</a>
       </div>
     </div>
+    <LibraryStorageNote active={projects.length > 0 && !libraryError} />
     {#if libraryError}
       <div role="alert" class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900">
         <p>{projectServiceMessage(libraryError, $locale)}</p>

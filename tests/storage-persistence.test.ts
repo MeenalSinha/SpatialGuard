@@ -187,12 +187,76 @@ describe('persistent storage request', () => {
     vi.stubGlobal('localStorage', { get length() { return denied(); }, key: denied, getItem: denied, setItem: denied, removeItem: denied });
     vi.stubGlobal('indexedDB', { open: denied });
     const { localStore, storageErrorMessage } = await modules();
-    for (const attempt of [localStore.list(), localStore.save(createDefaultProject())]) {
-      const error = await attempt.catch(error => error);
+    for (const attempt of [() => localStore.list(), () => localStore.save(createDefaultProject())]) {
+      const error = await attempt().catch(error => error);
       expect(error).toMatchObject({ name: 'SecurityError' });
       expect(storageErrorMessage(error)).toBe(unavailable);
     }
     await settle();
     expect(persist).not.toHaveBeenCalled();
+  });
+});
+
+describe('library storage note', () => {
+  it.each([
+    [false, false, true, true],
+    [null, false, true, true],
+    [true, false, true, false],
+    [undefined, false, true, false],
+    [false, true, true, false],
+    [null, false, false, false],
+  ] as const)('persistent %s, dismissed %s, projects shown %s: note shown %s', async (persistence, dismissed, active, shown) => {
+    const { showStorageNote } = await modules();
+    expect(showStorageNote(persistence, dismissed, active)).toBe(shown);
+  });
+
+  const checks: [string, (persist: () => Promise<boolean>) => object, boolean | null][] = [
+    ['granted', persist => ({ storage: { persisted: async () => true, persist } }), true],
+    ['best-effort', persist => ({ storage: { persisted: async () => false, persist } }), false],
+    ['no API', () => ({}), null],
+    ['throws', persist => ({ storage: { persisted: async () => { throw new DOMException('The operation is insecure.', 'SecurityError'); }, persist } }), null],
+  ];
+  it.each(checks)('checks without prompting: %s', async (_, browserWith, expected) => {
+    const persist = vi.fn(async () => true);
+    vi.stubGlobal('navigator', browserWith(persist));
+    const { checkStoragePersistence, storagePersistence } = await modules();
+    await expect(checkStoragePersistence()).resolves.toBe(expected);
+    expect(get(storagePersistence)).toBe(expected);
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it('keeps a grant made while an older check was still pending', async () => {
+    let answerCheck: (value: boolean) => void = () => {};
+    const persisted = vi.fn()
+      .mockImplementationOnce(() => new Promise<boolean>(resolve => { answerCheck = resolve; }))
+      .mockImplementation(async () => false);
+    browser({ persisted, persist: async () => true });
+    const { checkStoragePersistence, requestPersistentStorage, storagePersistence } = await modules();
+    const check = checkStoragePersistence();
+    await expect(requestPersistentStorage()).resolves.toBe(true);
+    answerCheck(false);
+    await check;
+    expect(get(storagePersistence)).toBe(true);
+  });
+
+  it('remembers a dismissal in this browser', async () => {
+    const { storageNoteDismissed, dismissStorageNote, STORAGE_NOTE_DISMISSED_KEY } = await modules();
+    expect(storageNoteDismissed()).toBe(false);
+    dismissStorageNote();
+    expect(storageNoteDismissed()).toBe(true);
+    expect(data.has(STORAGE_NOTE_DISMISSED_KEY)).toBe(true);
+    vi.resetModules();
+    expect((await modules()).storageNoteDismissed()).toBe(true);
+  });
+
+  it('works in memory when site storage is blocked', async () => {
+    const denied = (): never => { throw new DOMException('Access is denied for this document.', 'SecurityError'); };
+    vi.stubGlobal('localStorage', { getItem: denied, setItem: denied });
+    vi.stubGlobal('navigator', { get storage() { return denied(); } });
+    const { storageNoteDismissed, dismissStorageNote, checkStoragePersistence } = await modules();
+    expect(storageNoteDismissed()).toBe(false);
+    expect(() => dismissStorageNote()).not.toThrow();
+    expect(storageNoteDismissed()).toBe(true);
+    await expect(checkStoragePersistence()).resolves.toBeNull();
   });
 });
