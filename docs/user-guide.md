@@ -740,9 +740,23 @@ tool, and the view zooms to fit the plan and the new scan together, so you can
 drag them into place straight away and press **R** to turn the whole selection
 in 15° steps. Walls turn only when every wall they touch is selected, so the
 scan's loop stays closed; a single wall of a room does not move with **R**.
-Doors are not joined automatically — line them up by
-eye or with the dimension labels. One **Undo** ("Added RoomPlan scan") removes
-the whole scan again.
+One **Undo** ("Added RoomPlan scan") removes the whole scan again.
+
+To snap the scan into place instead of dragging it, right-click one of its
+doors and choose **Join to another door…** (the same button sits under the
+door's properties), then click the door it meets in the other room. The hint
+"Click the door this one meets in the other room. Esc cancels." shows
+meanwhile and the first door is marked in amber. The scan — its walls with
+their doors and windows, and the furniture, notes and dimensions inside its
+rooms — turns and slides as one piece until its door lies against the other
+door on the far side of that wall, one wall thickness apart (the average of
+the two walls' thicknesses; a scan's walls are 15 cm unless the capture says
+otherwise), because each scan modelled the shared wall from its own side. The
+joined scan is selected afterwards, so **R** or a drag still adjusts it. A door
+of the same room is refused with "Pick a door that belongs to another room.",
+doors on curved walls cannot be joined, and only walls that meet corner to
+corner travel with the door's room. One **Undo** ("Joined doors") puts the
+scan back where it was.
 
 ### Plans from OpenKitchen3D, OpenLandscape3D and OpenCatio3D
 
@@ -866,7 +880,7 @@ Press **?** in the editor to see this list on screen (**Copy All** copies it;
 | **Ctrl+Z** / **Ctrl+Y** (or Ctrl+Shift+Z) | Undo / Redo |
 | **Ctrl+C** / **Ctrl+V** | Copy / Paste selection |
 | **Ctrl+A** / **Ctrl+D** | Select all / Deselect all |
-| **Esc** | Cancel the current tool or drawing, deselect |
+| **Esc** | Cancel the current tool, drawing or door join, deselect |
 | **R** | Rotate selection (15° steps; walls included when several things are selected; also rotates the placement preview) |
 | **Delete** / **Backspace** | Delete selected |
 | **Ctrl+L** | Lock / Unlock |
@@ -935,6 +949,10 @@ Messages are quoted as the editor shows them.
   program; export it again from OpenPlan3D.
 - "The ZIP must contain exactly one room.json capture." — Not a RoomPlan
   dataset; use the iPhone app's Export Editable Plan (JSON) instead.
+- "Pick a door that belongs to another room." — While joining scans, the
+  second door you clicked is on the same run of walls as the first. Click a
+  door of the other room, or press **Esc**. A door on a curved wall cannot be
+  joined; the hint stays until you pick another door or press **Esc**.
 - "Capture code CODE was not found. It may have expired — share it again from
   the iOS app." / "Network error while downloading the capture. Check your
   connection and try again." / "Invalid import code in URL." — Open a fresh
