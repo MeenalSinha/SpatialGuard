@@ -115,7 +115,8 @@ Useful while drawing:
 - **Snapping.** Endpoints snap to nearby wall ends and walls. The top-bar
   **Snap to Grid** button turns all snapping (grid, angle and magnetic) on or
   off. The **Snap** button in the status bar (**S**) switches between the
-  25 cm grid and a finer step. **G** shows or hides the grid.
+  25 cm grid and a finer step; while Snap to Grid is off it reads **Snap off**.
+  **G** shows or hides the grid.
 
 ### Editing walls
 
@@ -367,6 +368,8 @@ type, and press Enter (Escape cancels). Double-click a note to edit it; the
 - **Grid** (**G**) shows the grid. **Snap** (**S**) switches the snap step
   between the 25 cm grid and 10 cm and shows the step in use (9.8" or 3.9"
   in feet and inches); **Snap to Grid** in the top bar turns snapping off.
+  While it is off, Snap reads **Snap off**, and **S** still picks the step
+  used once snapping is back on.
 - **Map** shows a mini-map of the whole floor for large plans.
 - Zoom with the mouse wheel or pinch; **F** fits the whole plan, **Shift+F**
   fits the selection. Pan with **Space+drag**, the middle mouse button, **Pan

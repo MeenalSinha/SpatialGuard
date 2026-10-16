@@ -31,8 +31,8 @@
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
-  import { snapStepLabel } from '$lib/utils/snapStep';
-  import { SNAP, angleSnapWithin, resizeFurnitureFromHandle, snap as _snap, type CanvasState } from '$lib/utils/canvasInteraction';
+  import { snapStatus } from '$lib/utils/snapStep';
+  import { angleSnapWithin, resizeFurnitureFromHandle, snap as _snap, type CanvasState } from '$lib/utils/canvasInteraction';
   import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, drawFloorBelowGhost as _drawFloorBelowGhost, entourageAspect } from '$lib/utils/canvasRenderer';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { translatedOpeningPosition } from '$lib/utils/openingTranslation';
@@ -204,6 +204,8 @@
   let currentSnapToGrid: boolean = $state(true);
   let currentSnapToWalls: boolean = $state(true);
   let currentGridSize: number = $state(25);
+  // Status-bar Snap button: the step S picked, or "Snap off" while the top-bar switch is off.
+  let snapControl = $derived(snapStatus($t, { enabled: currentSnapEnabled, snapToGrid: currentSnapToGrid, gridSize: currentGridSize }, $projectSettings.units));
   let isPlacingStair: boolean = $state(false);
   let draggingStairId: string | null = $state(null);
   let stairDragOffset: Point = { x: 0, y: 0 };
@@ -4074,9 +4076,9 @@
     <button class="hover:text-gray-700" onclick={() => showGrid = !showGrid} title={$t('canvasDisplay.gridHint')} aria-pressed={showGrid}>
       {showGrid ? '▦' : '▢'} {$t('canvasDisplay.grid')}
     </button>
-    <!-- Snap (S) picks the step snapping rounds to and shows it; the top-bar Snap to Grid turns snapping off. -->
-    <button class="hover:text-gray-700" onclick={() => projectSettings.update(s => ({ ...s, snapToGrid: !s.snapToGrid }))} title={$t('canvasDisplay.snapHint', { grid: snapStepLabel(currentGridSize, $projectSettings.units), fine: snapStepLabel(SNAP, $projectSettings.units) })} aria-pressed={currentSnapToGrid}>
-      🧲 {$t('canvasDisplay.snap', { step: snapStepLabel(currentSnapToGrid ? currentGridSize : SNAP, $projectSettings.units) })}
+    <!-- Snap (S) picks the step snapping rounds to and shows it; the top-bar Snap to Grid turns snapping off, and then this reads "Snap off". -->
+    <button class="hover:text-gray-700" onclick={() => projectSettings.update(s => ({ ...s, snapToGrid: !s.snapToGrid }))} title={snapControl.title} aria-pressed={snapControl.pressed}>
+      <span class:opacity-40={!currentSnapEnabled}>🧲</span> {snapControl.label}
     </button>
     <button class="hover:text-gray-700" onclick={() => layerVisibility.update(v => ({ ...v, furniture: !v.furniture }))} title={$t('canvasDisplay.furnitureHint')} aria-pressed={showFurniture}>
       {showFurniture ? '🪑' : '👻'} {$t('canvasDisplay.furniture')}
