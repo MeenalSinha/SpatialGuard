@@ -29,11 +29,15 @@
 
   let units = $derived($projectSettings.units);
 
+  // The store edits walls in place, so hand on a fresh copy: a $derived that returned the same
+  // object would look unchanged, and the length, heights and drawing below would keep showing the
+  // wall as it was before a Properties edit until the elevation was reopened.
   let wall = $derived.by(() => {
     const id = $elevationWallId;
     const f = $activeFloor;
     if (!id || !f) return null;
-    return f.walls.find((w) => w.id === id) ?? null;
+    const found = f.walls.find((w) => w.id === id);
+    return found ? { ...found } : null;
   });
 
   let wallIndex = $derived.by(() => {
