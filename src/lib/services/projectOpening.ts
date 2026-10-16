@@ -3,10 +3,17 @@ import type { Project } from '$lib/models/types';
 import { currentProject, loadProject } from '$lib/stores/project';
 import { autoSave, markClean, saveError, saveState } from '$lib/stores/saveStatus';
 import { readProject } from '$lib/utils/projectValidation';
-import { localStore } from './datastore';
+import { localStore, ProjectConflictError } from './datastore';
 import { prepareToLeave } from './deployment';
 
 let latestRequest = 0;
+
+/** An ID the library lacks stays taken while this tab remembers a revision of it: the store refuses to recreate a deleted plan. */
+async function taken(id: string): Promise<boolean> {
+  if (await localStore.has(id)) return true;
+  try { await localStore.assertCurrent(id); return false; }
+  catch (error) { if (error instanceof ProjectConflictError) return true; throw error; }
+}
 
 /** Validate first, preserve the current plan, then open a separate local project. */
 export async function openProject(
@@ -28,18 +35,20 @@ export async function openProject(
     }
     if (superseded()) return null;
     // Test existence without decoding a damaged entry: importing a recovery file
-    // must preserve those original bytes, too.
+    // must preserve those original bytes, too. A plan this tab opened that was
+    // deleted since (here or in another tab) cannot be saved under its old ID
+    // again, so its backup imports as a copy.
     const newId = () => globalThis.crypto?.randomUUID?.() ?? `project-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
     let collision = candidate.id === previous?.id;
     let storageReadable = true;
-    try { collision = await localStore.has(candidate.id) || collision; }
+    try { collision = await taken(candidate.id) || collision; }
     catch { storageReadable = false; }
     if (collision || !storageReadable) {
       let attempts = 0;
       do {
         if (++attempts > 5) throw new Error('Could not choose a new project ID. Try opening the file again.');
         candidate.id = newId();
-      } while (storageReadable && await localStore.has(candidate.id));
+      } while (storageReadable && await taken(candidate.id));
       if (collision) candidate.name = `${candidate.name || 'Untitled Project'} (${kind === 'import' ? 'Imported copy' : 'Copy'})`;
       candidate.createdAt = new Date();
     }
