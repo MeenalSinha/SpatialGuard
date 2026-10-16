@@ -96,7 +96,11 @@ are selected afterwards with a clean editing context and the view fits plan
 and scan together; R rotates a multi-selection including walls when the
 selected walls form a closed group, so a scan can be turned into place
 without tearing a corner. The scan's sibling block and attributes are merged
-into `project.interchange`. No automatic door-to-door snapping.
+into `project.interchange`. Door-to-door alignment followed in the next
+change: right-click a door, **Join to another door…**, click the matching
+door, and the scan's wall group is carried to the far side of that wall
+(`src/lib/utils/scanAlignment.ts`, `tests/scan-alignment.test.ts`,
+`tests/browser/scan-door-join.spec.ts`).
 
 ### Issues #101 and #102 — documentation
 
