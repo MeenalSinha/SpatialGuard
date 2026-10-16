@@ -306,6 +306,19 @@ describe('web project → prepared RoomPlan JSON → web project', () => {
     expect(named('East').walls).toContain('b-1');
   });
 
+  it('keeps the names of a hall and of the office built against its outer wall', () => {
+    const project = createDefaultProject('Hall');
+    const floor = project.floors[0];
+    const leg = (id: string, x: number, y: number, xx: number, yy: number) => ({ ...rectangleWalls()[0], id, start: { x, y }, end: { x: xx, y: yy } });
+    floor.walls = [leg('north', 0, 0, 4000, 0), leg('east', 4000, 0, 4000, 3000), leg('south', 4000, 3000, 0, 3000), leg('west', 0, 3000, 0, 0),
+      leg('office-west', 1500, 0, 1500, 1700), leg('office-south', 1500, 1700, 2500, 1700), leg('office-east', 2500, 1700, 2500, 0)];
+    floor.rooms = resolveRooms(floor).map(room => ({ ...room, name: room.walls.includes('south') ? 'Hall' : 'Office' }));
+    // The hall's section anchor must not land in the office, which its outline used to include.
+    const back = createProjectFromRoomPlan(JSON.parse(JSON.stringify(projectToPreparedRoomPlan(project))), 'Back');
+    expect(back.floors[0].rooms.map(({ name, area, walls }) => ({ name, area, south: walls.includes('south') }))
+      .sort((a, b) => a.name.localeCompare(b.name))).toEqual([{ name: 'Hall', area: 1030, south: true }, { name: 'Office', area: 170, south: false }]);
+  });
+
   it('keeps retained interchange state through the native project reader and rejects damaged state', () => {
     const project = webProject();
     project.interchange = { version: 1, blocks: { opencatio3d: { schema: 'opencatio3d/project@0.1', structures: [] } }, attributes: { crate: { opencatio3dKind: 'tunnel', segment: 0 } }, defaults: { ceilingHeight: 2.4 }, planNotes: 'Catio' };
