@@ -14,7 +14,8 @@ import { furnitureSvg } from './furnitureSvg';
 import { furniturePlanBounds } from './furniturePlanBounds';
 import { canvasPNG } from './canvasPNG';
 import { planOpening } from './planOpening';
-import { wallPlanBounds, wallPlanDimension } from './wallPlanGeometry';
+import { wallPlanBounds } from './wallPlanGeometry';
+import { wallDimensionLabel } from './wallDimensionLabel';
 import type { Project, Floor } from '$lib/models/types';
 import { getCatalogItem, getFurnitureSize } from '$lib/utils/furnitureCatalog';
 import { resolveRooms, getRoomPolygon, roomLabelPosition } from '$lib/utils/roomDetection';
@@ -264,7 +265,7 @@ export async function exportAsPNG(canvas: HTMLCanvasElement | null, project?: Pr
         else ctx.lineTo(wall.end.x - minX + pad, wall.end.y - minY + pad);
         ctx.stroke();
         // Dimension label
-        const { length: len, point: midpoint } = wallPlanDimension(wall);
+        const { length: len, point: midpoint } = wallDimensionLabel(wall, floor.walls, get(projectSettings).wallMeasureMode);
         const mx = midpoint.x - minX + pad;
         const my = midpoint.y - minY + pad;
         ctx.fillStyle = '#666';
@@ -384,7 +385,7 @@ export function exportAsSVG(project: Project, language: Locale = 'en') {
     if (w.curvePoint) paths += `  <path d="M ${x1} ${y1} Q ${w.curvePoint.x - minX + pad} ${w.curvePoint.y - minY + pad} ${x2} ${y2}" fill="none" stroke="#333" stroke-width="${w.thickness}" stroke-linecap="round"/>\n`;
     else paths += `  <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#333" stroke-width="${w.thickness}" stroke-linecap="round"/>\n`;
     // dimension label
-    const { length: len, point: midpoint } = wallPlanDimension(w);
+    const { length: len, point: midpoint } = wallDimensionLabel(w, floor.walls, get(projectSettings).wallMeasureMode);
     const mx = midpoint.x - minX + pad;
     const my = midpoint.y - minY + pad;
     paths += `  <text x="${mx}" y="${my}" text-anchor="middle" font-size="11" fill="#666" font-family="sans-serif">${len} cm</text>\n`;
@@ -806,7 +807,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     if (wall.curvePoint) ctx.quadraticCurveTo(wall.curvePoint.x - minX + pad, wall.curvePoint.y - minY + pad, wall.end.x - minX + pad, wall.end.y - minY + pad);
         else ctx.lineTo(wall.end.x - minX + pad, wall.end.y - minY + pad);
     ctx.stroke();
-    const { length: len, point: midpoint } = wallPlanDimension(wall);
+    const { length: len, point: midpoint } = wallDimensionLabel(wall, floor.walls, settings.wallMeasureMode);
     const mx = midpoint.x - minX + pad;
     const my = midpoint.y - minY + pad;
     ctx.fillStyle = '#666';

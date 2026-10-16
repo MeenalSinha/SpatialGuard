@@ -62,7 +62,7 @@
       const project = await openProject(async () => {
         const data = JSON.parse(await file.text());
         return isRoomPlanJson(data)
-          ? (await import('$lib/utils/roomplanImport')).createProjectFromRoomPlan(data, file.name.replace(/\.json$/i, ''))
+          ? (await import('$lib/utils/roomplanImport')).createProjectFromRoomPlan(data, (await import('$lib/utils/interchange')).interchangeProjectName(data, file.name.replace(/\.json$/i, '')))
           : data;
       }, 'import', openingLifetime.signal);
       if (!project) return;

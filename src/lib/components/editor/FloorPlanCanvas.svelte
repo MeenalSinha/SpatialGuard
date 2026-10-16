@@ -29,7 +29,7 @@
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
-  import { resizeFurnitureFromHandle, type CanvasState } from '$lib/utils/canvasInteraction';
+  import { angleSnapWithin, resizeFurnitureFromHandle, type CanvasState } from '$lib/utils/canvasInteraction';
   import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, drawFloorBelowGhost as _drawFloorBelowGhost, entourageAspect } from '$lib/utils/canvasRenderer';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { translatedOpeningPosition } from '$lib/utils/openingTranslation';
@@ -2791,13 +2791,19 @@
     if (draggingWallEndpoint) {
       // Exclude the dragged wall and all connected walls from magnetic snap targets
       const excludeIds = new Set<string>([draggingWallEndpoint.wallId, ...draggingConnectedEndpoints.map(c => c.wallId)]);
-      let pt = magneticSnap(mousePos, excludeIds);
-      // Angle snap to the opposite endpoint of the primary wall being dragged
-      if (currentFloor) {
+      // Alt: free move without magnet, grid or angle snapping
+      let pt: Point & { snappedToEndpoint?: boolean; snappedToWall?: boolean } = e.altKey
+        ? { x: mousePos.x, y: mousePos.y }
+        : magneticSnap(mousePos, excludeIds);
+      // Angle snap to the opposite endpoint of the primary wall being dragged. Shift forces the
+      // nearest 45° ray; otherwise the ray only attracts within the magnet's screen-pixel reach,
+      // so the correction cannot grow with wall length (issue #104), and a magnet join is kept.
+      if (!e.altKey && currentFloor) {
         const wall = currentFloor.walls.find(w => w.id === draggingWallEndpoint!.wallId);
         if (wall) {
           const other = draggingWallEndpoint.endpoint === 'start' ? wall.end : wall.start;
-          pt = angleSnap(other, pt);
+          if (e.shiftKey) pt = angleSnapWithin(other, pt, Infinity);
+          else if (currentSnapEnabled && !pt.snappedToEndpoint && !pt.snappedToWall) pt = angleSnapWithin(other, pt, MAGNETIC_SNAP / zoom);
         }
       }
       moveWallEndpoint(draggingWallEndpoint.wallId, draggingWallEndpoint.endpoint, pt);

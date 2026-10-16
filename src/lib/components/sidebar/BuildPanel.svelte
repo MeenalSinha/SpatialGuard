@@ -7,7 +7,8 @@
   import { modalDialog } from '$lib/utils/modalDialog';
   import { openProject } from '$lib/services/projectOpening';
   import ImportError from '$lib/components/ImportError.svelte';
-  import { onDestroy } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
+  import { get } from 'svelte/store';
   import { activateMeasurementTool, selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, placingColumn, placingColumnShape, activeFloor, setBackgroundImage, canvasCamX, canvasCamY, placingEntourageId, addCustomEntourage } from '$lib/stores/project';
   import type { Tool } from '$lib/stores/project';
   import type { Door, Window as Win, CustomEntourageDef } from '$lib/models/types';
@@ -18,8 +19,10 @@
   import type { FurnitureDef } from '$lib/utils/furnitureCatalog';
   import FurnitureThumbnail from './FurnitureThumbnail.svelte';
   import CustomModelPanel from './CustomModelPanel.svelte';
-  import { createProjectFromRoomPlan, extractRoomJsonFromZip, roomPlanImportOptions, validateRoomPlan, ORTHO_VERSION } from '$lib/utils/roomplanImport';
-  import { currentProject } from '$lib/stores/project';
+  import { createProjectFromRoomPlan, extractRoomJsonFromZip, importRoomPlanFloors, interchangeStateFromRoomPlan, roomPlanImportOptions, validateRoomPlan, ORTHO_VERSION } from '$lib/utils/roomplanImport';
+  import { addRoomPlanFloorsToProject, currentProject, selectImportedElements } from '$lib/stores/project';
+  import { selectableContentIds, type AddedContent } from '$lib/utils/roomplanMerge';
+  import { interchangeProjectName } from '$lib/utils/interchange';
 
   const openingLifetime = new AbortController();
   onDestroy(() => openingLifetime.abort());
@@ -37,6 +40,8 @@
   let optStraighten = $state(true);
   let optOrthogonal = $state(true);
   let optMergeDistance = $state(15);
+  /** 'add' stitches the scan into the open plan (issue #103); 'new' opens it as its own project. */
+  let importTarget = $state<'new' | 'add'>('new');
 
   function setTool(tool: Tool) {
     if (tool === 'measure' || tool === 'annotate') activateMeasurementTool(tool);
@@ -275,21 +280,42 @@
     if (!importJsonData) return;
     const input = importJsonData;
     importError = null;
+    const options = { straighten: optStraighten, orthogonal: optOrthogonal, mergeDistance: optMergeDistance };
+    let added: AddedContent[] = [];
     try {
-      // Create a new project for the imported data instead of merging into current
-      const projectName = importFileName ? importFileName.replace(/\.(json|zip)$/i, '') : 'RoomPlan Import';
-      await openProject(() => createProjectFromRoomPlan(input, projectName, {
-        straighten: optStraighten,
-        orthogonal: optOrthogonal,
-        mergeDistance: optMergeDistance,
-      }), 'import', openingLifetime.signal);
+      if (importTarget === 'add') {
+        // Stitch the scan into the open plan beside its current content; one Undo removes it again.
+        // The file's sibling block, attributes, defaults and notes travel with the scan.
+        added = addRoomPlanFloorsToProject(importRoomPlanFloors(input, options), undefined, interchangeStateFromRoomPlan(input)).added;
+        selectAddedContent(added);
+      } else {
+        // Create a new project for the imported data instead of merging into current
+        const projectName = interchangeProjectName(input, importFileName ? importFileName.replace(/\.(json|zip)$/i, '') : 'RoomPlan Import');
+        await openProject(() => createProjectFromRoomPlan(input, projectName, options), 'import', openingLifetime.signal);
+      }
     } catch (e: any) {
       if (importJsonData === input) importError = e.message;
     }
     if (importJsonData === input) {
       showImportDialog = false;
       importJsonData = null;
+      if (added.some(entry => entry.ids.length)) await revealPlan();
     }
+  }
+
+  /** Show the stitched scan on its floor and select it, so it can be moved or rotated into place. */
+  function selectAddedContent(added: AddedContent[]) {
+    const first = added.find(entry => entry.ids.length), project = get(currentProject);
+    if (!first || !project) return;
+    const floor = project.floors.find(f => f.id === first.floorId);
+    // Switches floor when needed and always leaves the select tool active with nothing being placed.
+    selectImportedElements(first.floorId, floor ? selectableContentIds(floor, first.ids) : []);
+  }
+
+  /** The canvas owns its camera; its Zoom to Fit shortcut shows the plan and the new scan together once the dialog is gone. */
+  async function revealPlan() {
+    await tick();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'f' }));
   }
 
   function cancelImport() {
@@ -791,6 +817,24 @@
       <p class="text-xs text-gray-400 mb-4">{importFileName}</p>
 
       <div class="space-y-3">
+        <fieldset class="space-y-2 pb-3 border-b border-gray-100">
+          <legend class="text-xs text-gray-500 mb-1">{$t('roomPlanDialog.target')}</legend>
+          <label class="flex items-start gap-2.5 cursor-pointer">
+            <input type="radio" name="roomplan-target" value="new" bind:group={importTarget} class="accent-blue-500 mt-0.5" />
+            <div>
+              <div class="text-sm font-medium text-gray-700">{$t('roomPlanDialog.newProject')}</div>
+              <div class="text-xs text-gray-400">{$t('roomPlanDialog.newProjectHelp')}</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-2.5 cursor-pointer">
+            <input type="radio" name="roomplan-target" value="add" bind:group={importTarget} class="accent-blue-500 mt-0.5" />
+            <div>
+              <div class="text-sm font-medium text-gray-700">{$t('roomPlanDialog.addToPlan')}</div>
+              <div class="text-xs text-gray-400">{$t('roomPlanDialog.addToPlanHelp')}</div>
+            </div>
+          </label>
+        </fieldset>
+
         <label class="flex items-start gap-2.5 cursor-pointer">
           <input type="checkbox" bind:checked={optStraighten} class="accent-blue-500 mt-0.5" />
           <div>

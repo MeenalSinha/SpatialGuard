@@ -12,7 +12,7 @@ import { planOpening } from './planOpening';
 import { planWallOutlines } from './planWallOutline';
 import Drawing from 'dxf-writer';
 import { drawFurnitureDxf } from './furnitureDxf';
-import { wallPlanDimension } from './wallPlanGeometry';
+import { wallDimensionLabel } from './wallDimensionLabel';
 import type { Project } from '$lib/models/types';
 import { getCatalogItem, getFurnitureSize } from '$lib/utils/furnitureCatalog';
 import { resolveRooms, getRoomPolygon, roomLabelPosition } from '$lib/utils/roomDetection';
@@ -92,7 +92,8 @@ export function exportDXF(project: Project, language: Locale = 'en') {
   // Draw dimensions
   d.setActiveLayer('DIMENSIONS');
   for (const w of floor.walls) {
-    const { length: len, point: midpoint } = wallPlanDimension(w);
+    // Follows Settings → Measure walls like the editor and the other exports (issue #106).
+    const { length: len, point: midpoint } = wallDimensionLabel(w, floor.walls, get(projectSettings).wallMeasureMode);
     const mx = midpoint.x;
     const my = -midpoint.y;
     const angle = Math.atan2(-(w.end.y - w.start.y), w.end.x - w.start.x) * (180 / Math.PI);

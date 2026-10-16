@@ -10,6 +10,8 @@
   import { page } from '$app/state';
   import { reportLoadingFailure } from '$lib/services/deployment';
   import { currentProject, viewMode, selectedElementId, selectedRoomId, createDefaultProject, loadProject, selectedTool, placingFurnitureId, elevationWallId, elevationPickMode } from '$lib/stores/project';
+  import { USER_GUIDE_URL } from '$lib/stores/exportNotice';
+  import { interchangeProjectName } from '$lib/utils/interchange';
   import { localStore, storageErrorMessage, downloadLibraryBackup } from '$lib/services/datastore';
   import { autoSave, markClean, saveState } from '$lib/stores/saveStatus';
   import { createProjectFromRoomPlan, isRoomPlanJson } from '$lib/utils/roomplanImport';
@@ -101,7 +103,8 @@
       if (!isRoomPlanJson(data)) {
         throw new CaptureImportError('captureImport.format');
       }
-      const project = createProjectFromRoomPlan(data, `Room Capture ${code}`);
+      // A sibling planner's plan keeps its own title; iPhone captures keep the code-based name.
+      const project = createProjectFromRoomPlan(data, interchangeProjectName(data, `Room Capture ${code}`));
       loadProject(project);
       // A storage failure must not discard a successfully downloaded capture.
       await autoSave();
@@ -325,6 +328,10 @@
             <h2 class="text-lg font-bold text-slate-800">{$t('shortcuts.title')}</h2>
           </div>
           <div class="flex items-center gap-2">
+            <a
+              href={USER_GUIDE_URL} target="_blank" rel="noopener"
+              class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 transition-colors"
+            >{$t('help.userGuide')}</a>
             <button
               class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 transition-colors flex items-center gap-1.5"
               disabled={shortcutCopyState === 'copying'}

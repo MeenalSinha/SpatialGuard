@@ -18,6 +18,9 @@
   const openingLifetime = new AbortController();
   onDestroy(() => openingLifetime.abort());
 
+  // Same link as USER_GUIDE_URL in $lib/stores/exportNotice, which would pull the editor's export code into this page.
+  const USER_GUIDE_URL = 'https://github.com/laanlabs/openPlan3D/blob/main/docs/user-guide.md';
+
   let projects = $state<{ id: string; name: string; updatedAt: string }[]>([]);
   let thumbnails = $state<Record<string, string | null>>({});
   let showWelcome = $state(false);
@@ -188,6 +191,7 @@
         {#if !libraryError}<button class="font-semibold text-blue-600 underline" onclick={backupLibrary}>{$t('library.backup')}</button>{/if}
         <button class="font-semibold text-blue-600 underline" onclick={openRestore}>{$t('library.restore')}</button>
         <button class="font-semibold text-blue-600 underline" onclick={openPackage}>{$t('library.package')}</button>
+        <a class="font-semibold text-blue-600 underline" href={USER_GUIDE_URL} target="_blank" rel="noopener">{$t('help.userGuide')}</a>
       </div>
     </div>
     {#if libraryError}

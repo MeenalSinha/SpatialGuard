@@ -4,7 +4,9 @@
   let { onToggleLayers, layersOpen = false, onToggleHistory, historyOpen = false }: { onToggleLayers?: () => void; layersOpen?: boolean; onToggleHistory?: (trigger: HTMLButtonElement) => void; historyOpen?: boolean } = $props();
   import { captureMain3DPNG } from '$lib/utils/captureMain3D';
   import ExportNotice from '$lib/components/ExportNotice.svelte';
-  import { exportNotice, exportPNGWithFeedback, exportPDFWithFeedback as exportPDF } from '$lib/stores/exportNotice';
+  import { exportNotice, exportPNGWithFeedback, exportPDFWithFeedback as exportPDF, downloadInterchangeJson, openInSiblingPlanner, USER_GUIDE_URL } from '$lib/stores/exportNotice';
+  import { SIBLING_PLANNERS, type SiblingPlannerId } from '$lib/utils/transferLink';
+  import { interchangeProjectName } from '$lib/utils/interchange';
   import { modalDialog, hasOpenModal } from '$lib/utils/modalDialog';
   import { openProject } from '$lib/services/projectOpening';
   import { saveConflict, savingCopy, saveCurrentAsCopy } from '$lib/stores/saveStatus';
@@ -191,6 +193,19 @@
     if (project) assistantShareProject = structuredClone(project);
   }
 
+  function onExportInterchange() {
+    const project = get(currentProject);
+    exportOpen = false;
+    if (project) downloadInterchangeJson(structuredClone(project));
+  }
+
+  /** The helper opens the tab synchronously, inside this click, before building the link. */
+  function onOpenInPlanner(id: SiblingPlannerId) {
+    const project = get(currentProject);
+    exportOpen = false;
+    if (project) void openInSiblingPlanner(structuredClone(project), id);
+  }
+
   function onExportSVG() {
     const p = get(currentProject);
     if (p) exportAsSVG(p, get(locale));
@@ -291,7 +306,7 @@
             ? await extractRoomJsonFromZip(file)
             : JSON.parse(await file.text());
           return isRoomPlanJson(data)
-            ? createProjectFromRoomPlan(data, file.name.replace(/\.(json|zip)$/i, ''))
+            ? createProjectFromRoomPlan(data, interchangeProjectName(data, file.name.replace(/\.(json|zip)$/i, '')))
             : data;
         }, 'import', openingLifetime.signal);
       } catch (e: any) {
@@ -546,6 +561,7 @@
         <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { versionHistoryOpen = true; moreOpen = false; }}>{$t('versions.title')}</button>
         <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { areaOpen = true; moreOpen = false; }}>{$t('areaSummary.title')}</button>
         <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { settingsOpen = true; moreOpen = false; }}>{$t('settings.title')}</button>
+        <a href={USER_GUIDE_URL} target="_blank" rel="noopener" class="block w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { moreOpen = false; }}>{$t('help.userGuide')}</a>
       </div>
     {/if}
   </div>
@@ -564,7 +580,7 @@
       <span class="max-xl:hidden">{$t('exportMenu.title')}</span>
     </button>
     {#if exportOpen}
-      <div class="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-48 z-50">
+      <div class="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 w-56 z-50 max-h-[70vh] overflow-y-auto">
         <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2" onclick={() => { exportOpen = false; window.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', ctrlKey: true })); }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           {$t('print.entry')}
@@ -600,6 +616,14 @@
         </button>
         <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={onExportPackage}>{$t('exportMenu.package')}</button>
         <p class="px-3 pb-2 text-xs text-gray-500">{$t('exportMenu.packageHelp')}</p>
+        <div class="h-px bg-gray-100 my-1"></div>
+        <p class="px-3 pt-1 pb-1 text-xs text-gray-500">{$t('exportMenu.plannersTitle')}</p>
+        {#each SIBLING_PLANNERS as planner (planner.id)}
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => onOpenInPlanner(planner.id)}>{$t('exportMenu.openIn', { name: planner.name })}</button>
+        {/each}
+        <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={onExportInterchange}>{$t('exportMenu.interchange')}</button>
+        <p class="px-3 pb-2 text-xs text-gray-500">{$t('exportMenu.interchangeHelp')}</p>
+        <div class="h-px bg-gray-100 my-1"></div>
         <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={onShareWithAssistant}>{$t('exportMenu.assistant')}</button>
         <div class="h-px bg-gray-100 my-1"></div>
         <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2" onclick={onImportJSON}>
