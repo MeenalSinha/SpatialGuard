@@ -4,19 +4,22 @@ import { mockStorage } from './fixtures/indexeddb';
 
 const storage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
 let systemDark: boolean;
-let systemChange: () => void;
+let systemListeners: (() => void)[];
+let storageListeners: ((event: StorageEvent) => void)[];
 let toggle: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   vi.resetModules();
   systemDark = false;
-  systemChange = () => {};
+  systemListeners = [];
+  storageListeners = [];
   toggle = vi.fn();
   vi.stubGlobal('window', {
     matchMedia: () => ({
       get matches() { return systemDark; },
-      addEventListener: (_type: string, listener: () => void) => { systemChange = listener; },
+      addEventListener: (_type: string, listener: () => void) => { systemListeners.push(listener); },
     }),
+    addEventListener: (type: string, listener: (event: StorageEvent) => void) => { if (type === 'storage') storageListeners.push(listener); },
   });
   vi.stubGlobal('document', { documentElement: { classList: { toggle } } });
 });
@@ -34,13 +37,28 @@ function blockStorage() {
   });
 }
 
-/** The operating system switches between light and dark while the app is open. */
+/** The operating system switches between light and dark while the app is open, in every open tab. */
 function switchSystemTheme(dark: boolean) {
   systemDark = dark;
-  systemChange();
+  for (const listener of systemListeners) listener();
 }
 
 const load = () => import('../src/lib/stores/theme');
+
+/** Another tab of the app: its own copy of the store, sharing this browser's storage. */
+async function openTab() {
+  vi.resetModules();
+  const known = storageListeners.length;
+  const { themePreference } = await load();
+  const listeners = storageListeners.slice(known);
+  return {
+    themePreference,
+    /** The browser tells this tab about a write that another tab made. */
+    storageChanged(key: string | null, newValue: string | null) {
+      for (const listener of listeners) listener({ key, newValue } as StorageEvent);
+    },
+  };
+}
 
 describe('theme preference', () => {
   it('starts with the system theme when site storage is blocked', async () => {
@@ -84,5 +102,41 @@ describe('theme preference', () => {
     expect(get(themePreference)).toBe('dark');
     switchSystemTheme(false);
     expect(toggle).toHaveBeenLastCalledWith('dark', true);
+  });
+
+  it('applies a theme chosen in another tab and keeps it when the system theme changes', async () => {
+    const data = mockStorage();
+    systemDark = true;
+    const here = await openTab();
+    const other = await openTab();
+    other.themePreference.set('light');
+    toggle.mockClear();
+    here.storageChanged('o3d_theme', data.get('o3d_theme')!);
+    expect(get(here.themePreference)).toBe('light');
+    expect(toggle).toHaveBeenLastCalledWith('dark', false);
+    // As after a reload, the saved Light holds when the system theme turns dark.
+    switchSystemTheme(false);
+    toggle.mockClear();
+    switchSystemTheme(true);
+    expect(toggle).not.toHaveBeenCalled();
+    // System chosen in the other tab hands this one back to the system theme.
+    other.themePreference.set('system');
+    toggle.mockClear();
+    here.storageChanged('o3d_theme', data.get('o3d_theme')!);
+    expect(get(here.themePreference)).toBe('system');
+    expect(toggle).toHaveBeenLastCalledWith('dark', true);
+    // Writes to other keys leave the theme alone, and each tab listens once.
+    here.storageChanged('o3d_locale', 'pt');
+    expect(get(here.themePreference)).toBe('system');
+    expect(storageListeners).toHaveLength(2);
+  });
+
+  it('loads on the server without listening for system or storage changes', async () => {
+    vi.stubGlobal('window', undefined);
+    vi.stubGlobal('document', undefined);
+    const { themePreference } = await load();
+    expect(get(themePreference)).toBe('system');
+    expect(systemListeners).toHaveLength(0);
+    expect(storageListeners).toHaveLength(0);
   });
 });

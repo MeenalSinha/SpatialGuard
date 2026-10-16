@@ -42,6 +42,13 @@ function createThemeStore() {
         applyTheme(resolveTheme('system'));
       }
     });
+    // Another tab saved a theme: apply it here as a reload would, so it also holds when the system theme changes.
+    window.addEventListener('storage', (event) => {
+      if (event.key !== 'o3d_theme') return;
+      preference = (event.newValue as ThemePreference | null) || 'system';
+      set(preference);
+      applyTheme(resolveTheme(preference));
+    });
   }
 
   return {
