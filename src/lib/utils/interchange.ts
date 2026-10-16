@@ -19,9 +19,12 @@
  *
  * Lossy or unrepresented: curved walls export their straight chord (no curve exists in the
  * format); sloped walls their taller end; door types french/garage → double, pocket → sliding,
- * bifold → single; an `opening` carries no hinge or swing; custom models export as their catalog
- * box; stairs, columns, dimension/text annotations, measurements, guides, entourage, background
- * images, colours, textures and item details are not exported.
+ * bifold → single; an `opening` carries no hinge or swing; window types other than sliding →
+ * fixed; custom models export as their catalog box; stairs, columns, dimension/text annotations,
+ * measurements, guides, entourage, background images, colours, textures and item details are not
+ * exported. Floor openings ("Open to floor below") and floor elevations and slab thicknesses have
+ * no place in the format (a section has no opening flag, a `stories` entry is `{ index, name }`),
+ * so on import the room has its slab again and each floor stands at level × 300 cm on a 5 cm slab.
  *
  * Retained sibling blocks are re-emitted with three adjustments, so the receiving planner reads
  * the edited geometry instead of its own old snapshot: a `webProject` copy (the siblings' importers

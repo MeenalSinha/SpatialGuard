@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { t, locale } from '$lib/i18n';
+  import { t, locale, translate } from '$lib/i18n';
   import { connectedWallGroup } from '$lib/utils/scanAlignment';
   import { furnitureName, customModelName } from '$lib/i18n/furnitureNames';
   import { multiSelectionBounds } from '$lib/utils/multiSelectionBounds';
@@ -23,6 +23,7 @@
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
   import { handleGlobalShortcut, isEditingField, isControlKey } from '$lib/utils/shortcuts';
   import { hasOpenModal } from '$lib/utils/modalDialog';
+  import { focusInlineEditor } from '$lib/utils/inlineEditorFocus';
   import ContextMenu from './ContextMenu.svelte';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
   import { roomTemplates, placeRoomTemplate } from '$lib/utils/roomTemplates';
@@ -30,7 +31,8 @@
   import { getWallTextureCanvas, getFloorTextureCanvas, setTextureLoadCallback } from '$lib/utils/textureGenerator';
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
-  import { angleSnapWithin, resizeFurnitureFromHandle, type CanvasState } from '$lib/utils/canvasInteraction';
+  import { snapStatus } from '$lib/utils/snapStep';
+  import { angleSnapWithin, resizeFurnitureFromHandle, snap as _snap, type CanvasState } from '$lib/utils/canvasInteraction';
   import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, drawFloorBelowGhost as _drawFloorBelowGhost, entourageAspect } from '$lib/utils/canvasRenderer';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { translatedOpeningPosition } from '$lib/utils/openingTranslation';
@@ -126,15 +128,6 @@
     editingDimensionId = null;
   }
 
-  function focusInlineEditor(node: HTMLInputElement) {
-    // Placement starts on mousedown. Focus after its default canvas focus has
-    // completed, and cancel pending focus when the inline editor is dismissed.
-    const frame = requestAnimationFrame(() => {
-      if (node.isConnected && !hasOpenModal()) node.focus({ preventScroll: true });
-    });
-    return { destroy: () => cancelAnimationFrame(frame) };
-  }
-
   // Text annotation tool
   let textAnnotationMode = $state(false);
   let editingTextAnnotationId: string | null = $state(null);
@@ -151,13 +144,14 @@
   let showRulers = $state(true);
 
   // Layer visibility toggles
-  let layerVis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, textAnnotations: true, entourage: true, floorBelow: true });
+  let layerVis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, textAnnotations: true, entourage: true, floorBelow: true, roomLabels: true });
   // Sync showFurnitureStore ↔ layerVisibility.furniture
   let showFurniture = $derived(layerVis.furniture);
   $effect(() => { showFurnitureStore.set(layerVis.furniture); });
   let showDoors = $derived(layerVis.doors);
   let showWindows = $derived(layerVis.windows);
-  let showRoomLabels = $state(true);
+  // Shared with the plan exports: Room Labels is a layer switch, Automatic dimensions is Settings → Dimensions → Dimensions.
+  let showRoomLabels = $derived(layerVis.roomLabels);
   let showDimensions = $state(true);
   let dimSettings: ProjectSettings = $state({
     units: 'metric', showDimensions: true, showExternalDimensions: true,
@@ -198,7 +192,6 @@
   let lastFloorBelowHash = '';
 
   const GRID = 20;
-  const SNAP = 10;
   const MAGNETIC_SNAP = 15;
   // Store subscriptions
   let currentFloor: Floor | null = $state(null);
@@ -212,6 +205,8 @@
   let currentSnapToGrid: boolean = $state(true);
   let currentSnapToWalls: boolean = $state(true);
   let currentGridSize: number = $state(25);
+  // Status-bar Snap button: the step S picked, or "Snap off" while the top-bar switch is off.
+  let snapControl = $derived(snapStatus($t, { enabled: currentSnapEnabled, snapToGrid: currentSnapToGrid, gridSize: currentGridSize }, $projectSettings.units));
   let isPlacingStair: boolean = $state(false);
   let draggingStairId: string | null = $state(null);
   let stairDragOffset: Point = { x: 0, y: 0 };
@@ -350,9 +345,7 @@
   }
 
   function snap(v: number): number {
-    if (!currentSnapEnabled) return v;
-    const step = currentSnapToGrid ? currentGridSize : SNAP;
-    return Math.round(v / step) * step;
+    return _snap(v, currentSnapEnabled, currentSnapToGrid, currentGridSize);
   }
 
   function screenToWorld(sx: number, sy: number): Point {
@@ -369,7 +362,8 @@
   }
 
   function magneticSnap(p: Point, excludeWallIds?: Set<string>): Point & { snappedToEndpoint?: boolean; snappedToWall?: boolean; snappedWallId?: string } {
-    if (!currentFloor) return { x: snap(p.x), y: snap(p.y) };
+    // The top-bar Snap to Grid switch turns the magnet off along with grid and angle snapping.
+    if (!currentFloor || !currentSnapEnabled) return { x: snap(p.x), y: snap(p.y) };
     let best: Point & { snappedToEndpoint?: boolean; snappedToWall?: boolean; snappedWallId?: string } = { x: snap(p.x), y: snap(p.y) };
     let bestDist = MAGNETIC_SNAP / zoom;
     // First pass: snap to endpoints (highest priority)
@@ -699,7 +693,7 @@
     ctx.globalAlpha = 1;
 
     ctx.font = 'bold 11px system-ui, sans-serif';
-    const text = isDoor ? 'Click to place door' : 'Click to place window';
+    const text = translate(get(locale), isDoor ? 'canvasHints.placeDoor' : 'canvasHints.placeWindow');
     const tm = ctx.measureText(text);
     const tx = s.x, ty = s.y - thickness / 2 - 24;
     const pw = tm.width + 12, ph = 20;
@@ -1603,7 +1597,7 @@
         }
         // "Extend to wall" tooltip
         ctx.font = 'bold 10px system-ui, sans-serif';
-        const extText = 'Snap to wall';
+        const extText = translate(get(locale), 'canvasHints.snapWall');
         const extTW = ctx.measureText(extText).width;
         ctx.fillStyle = '#ec4899';
         ctx.beginPath();
@@ -2833,10 +2827,9 @@
         {
           const mdx = mousePos.x - draggingWallParallel.startMousePos.x;
           const mdy = mousePos.y - draggingWallParallel.startMousePos.y;
-          // Snap delta to grid
-          const snapStep = currentSnapToGrid ? currentGridSize : SNAP;
-          const dx = Math.round(mdx / snapStep) * snapStep;
-          const dy = Math.round(mdy / snapStep) * snapStep;
+          // Snap the delta like a point: to the snap step, or not at all with Snap to Grid off
+          const dx = snap(mdx);
+          const dy = snap(mdy);
           // Set wall positions from original + offset
           const newStart = {
             x: draggingWallParallel.origStart.x + dx,
@@ -2859,9 +2852,8 @@
       }
     }
     if (draggingMultiSelect && currentFloor) {
-      const mSnapStep = currentSnapToGrid ? currentGridSize : SNAP;
-      const dx = Math.round((mousePos.x - draggingMultiSelect.startMousePos.x) / mSnapStep) * mSnapStep;
-      const dy = Math.round((mousePos.y - draggingMultiSelect.startMousePos.y) / mSnapStep) * mSnapStep;
+      const dx = snap(mousePos.x - draggingMultiSelect.startMousePos.x);
+      const dy = snap(mousePos.y - draggingMultiSelect.startMousePos.y);
       for (const [id, orig] of draggingMultiSelect.origPositions) {
         if (orig.opening) {
           const wall=currentFloor.walls.find(item => item.id === orig.opening!.wallId);
@@ -2892,9 +2884,8 @@
       }
     }
     if (draggingRoomId && currentFloor && roomDragStartPositions.size > 0) {
-      const rSnapStep = currentSnapToGrid ? currentGridSize : SNAP;
-      const dx = Math.round((mousePos.x - roomDragStartMouse.x) / rSnapStep) * rSnapStep;
-      const dy = Math.round((mousePos.y - roomDragStartMouse.y) / rSnapStep) * rSnapStep;
+      const dx = snap(mousePos.x - roomDragStartMouse.x);
+      const dy = snap(mousePos.y - roomDragStartMouse.y);
       // Rigid move of every boundary wall; a curved wall's control point travels with it.
       for (const [wid, orig] of roomDragStartPositions) moveWallGeometryDuringDrag(wid, translatedWallGeometry(orig, dx, dy));
     }
@@ -4086,8 +4077,9 @@
     <button class="hover:text-gray-700" onclick={() => showGrid = !showGrid} title={$t('canvasDisplay.gridHint')} aria-pressed={showGrid}>
       {showGrid ? '▦' : '▢'} {$t('canvasDisplay.grid')}
     </button>
-    <button class="hover:text-gray-700" onclick={() => projectSettings.update(s => ({ ...s, snapToGrid: !s.snapToGrid }))} title={$t('canvasDisplay.snapHint')} aria-pressed={currentSnapToGrid}>
-      {currentSnapToGrid ? '🧲' : '↔'} {$t('canvasDisplay.snap')}
+    <!-- Snap (S) picks the step snapping rounds to and shows it; the top-bar Snap to Grid turns snapping off, and then this reads "Snap off". -->
+    <button class="hover:text-gray-700" onclick={() => projectSettings.update(s => ({ ...s, snapToGrid: !s.snapToGrid }))} title={snapControl.title} aria-pressed={snapControl.pressed}>
+      <span class:opacity-40={!currentSnapEnabled}>🧲</span> {snapControl.label}
     </button>
     <button class="hover:text-gray-700" onclick={() => layerVisibility.update(v => ({ ...v, furniture: !v.furniture }))} title={$t('canvasDisplay.furnitureHint')} aria-pressed={showFurniture}>
       {showFurniture ? '🪑' : '👻'} {$t('canvasDisplay.furniture')}
@@ -4118,11 +4110,11 @@
         <span>{floorBelow ? $t('layerVisibility.belowNamed', { name: floorBelow.name }) : $t('layerVisibility.below')}</span>
       </label>
       <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
-        <input type="checkbox" bind:checked={showRoomLabels} class="accent-blue-500" />
+        <input type="checkbox" checked={showRoomLabels} onchange={() => layerVisibility.update(v => ({ ...v, roomLabels: !v.roomLabels }))} class="accent-blue-500" />
         <span>{$t('layerVisibility.roomLabels')}</span>
       </label>
       <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
-        <input type="checkbox" bind:checked={showDimensions} class="accent-blue-500" />
+        <input type="checkbox" checked={showDimensions} onchange={() => projectSettings.update(s => ({ ...s, showDimensions: !s.showDimensions }))} class="accent-blue-500" />
         <span>{$t('layerVisibility.automaticDimensions')}</span>
       </label>
     </div>
@@ -4233,27 +4225,27 @@
   {/if}
   {#if currentTool === 'wall' && wallStart}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click to add wall segment · Double-click to finish · C to close loop · Esc to cancel
+      {$t('canvasHints.wall')}
     </div>
   {/if}
   {#if currentPlacingId && currentTool === 'furniture'}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click to place · Scroll or R to rotate ({currentPlacingRotation}°) · Esc to cancel
+      {$t('canvasHints.furniture', { angle: currentPlacingRotation })}
     </div>
   {/if}
   {#if measuring}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-red-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click or tap two points to measure · M to exit · Esc to cancel
+      {$t('canvasHints.measure')}
     </div>
   {/if}
   {#if textAnnotationMode}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      Click to place text label · Esc to cancel
+      {$t('canvasHints.text')}
     </div>
   {/if}
   {#if annotating}
     <div class="absolute top-2 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs shadow">
-      {annotationStart ? 'Click second point to create annotation' : 'Click first point'} · N to exit · Esc to cancel
+      {$t(annotationStart ? 'canvasHints.annotateEnd' : 'canvasHints.annotateStart')}
     </div>
   {/if}
 

@@ -2,7 +2,7 @@ import { selectionRotation } from '$lib/utils/selectionRotation';
 import { splitWallRoomReferences } from '$lib/utils/splitWallRooms';
 import { splitWallGeometry } from '$lib/utils/splitWallGeometry';
 import { wallPathProfile } from '$lib/utils/wallProfiles';
-import { duplicatePlanSelection, pastePlanSelection } from '$lib/utils/duplicateSelection';
+import { duplicatePlanSelection, pastePlanSelection, shiftedOpeningPosition } from '$lib/utils/duplicateSelection';
 import { writable, derived, get, type Writable } from 'svelte/store';
 import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage, GuideLine, ElementGroup, EntourageItem, InterchangeState } from '$lib/models/types';
 import { planWallResize, finitePoint, validPositiveDimension, validOpeningPosition, type WallEndpoint } from '$lib/utils/wallEditing';
@@ -1094,7 +1094,9 @@ export function duplicateDoor(id: string): string | null {
   if (!floor) return null;
   const d = floor.doors.find(d => d.id === id);
   if (!d) return null;
-  const newPos = Math.min(1, d.position + 0.1);
+  const wall = floor.walls.find(w => w.id === d.wallId);
+  if (!wall) return null;
+  const newPos = shiftedOpeningPosition(wall, d);
   const newId = uid();
   mutate(f => {
     f.doors.push({ ...d, id: newId, position: newPos });
@@ -1110,7 +1112,9 @@ export function duplicateWindow(id: string): string | null {
   if (!floor) return null;
   const w = floor.windows.find(w => w.id === id);
   if (!w) return null;
-  const newPos = Math.min(1, w.position + 0.1);
+  const wall = floor.walls.find(candidate => candidate.id === w.wallId);
+  if (!wall) return null;
+  const newPos = shiftedOpeningPosition(wall, w);
   const newId = uid();
   mutate(f => {
     f.windows.push({ ...w, id: newId, position: newPos });
@@ -1386,10 +1390,10 @@ export function moveTextAnnotation(id: string, position: { x: number; y: number 
   currentProject.set({ ...p });
 }
 
-// Layer visibility store (used by LayersPanel and FloorPlanCanvas)
-/** `floorBelow` is the dimmed reference underlay of the storey beneath the active one. */
-export const layerVisibility = writable<{ walls: boolean; doors: boolean; windows: boolean; furniture: boolean; stairs: boolean; columns: boolean; guides: boolean; measurements: boolean; annotations: boolean; textAnnotations: boolean; entourage: boolean; floorBelow: boolean }>({
-  walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, textAnnotations: true, entourage: true, floorBelow: true,
+// Layer visibility store (used by LayersPanel, FloorPlanCanvas and the plan exports)
+/** `floorBelow` is the dimmed reference underlay of the storey beneath the active one; `roomLabels` shows room names and areas. */
+export const layerVisibility = writable<{ walls: boolean; doors: boolean; windows: boolean; furniture: boolean; stairs: boolean; columns: boolean; guides: boolean; measurements: boolean; annotations: boolean; textAnnotations: boolean; entourage: boolean; floorBelow: boolean; roomLabels: boolean }>({
+  walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, textAnnotations: true, entourage: true, floorBelow: true, roomLabels: true,
 });
 
 // --- Lock ---

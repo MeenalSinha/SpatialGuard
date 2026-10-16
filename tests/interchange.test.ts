@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Project } from '$lib/models/types';
 import { createDefaultFloor, createDefaultProject } from '$lib/stores/project';
+import { floorElevations } from '$lib/utils/floors';
 import { getFurnitureSize } from '$lib/utils/furnitureCatalog';
 import { INTERCHANGE_BLOCK_KEYS, interchangeFileName, interchangeProjectName, projectToPreparedRoomPlan, sortedJson } from '$lib/utils/interchange';
 import { resolveRooms } from '$lib/utils/roomDetection';
@@ -90,6 +91,23 @@ describe('web project → prepared RoomPlan JSON → web project', () => {
     expect(back.floors[0].rooms[0].walls).toHaveLength(4);
     expect(back.floors[1].rooms.map(r => r.name)).toEqual(['Studio']);
     expect(back.interchange).toBeUndefined();
+  });
+
+  it('leaves floor openings, floor elevations and slab thicknesses out, as the format notes say', () => {
+    // docs/handoff-format-v1.md lists these as unrepresented; carrying them changes the family format.
+    const project = webProject();
+    project.floors[0].rooms[0].floorOpening = true;
+    Object.assign(project.floors[1], { elevation: 350, slabThickness: 25 });
+    const file: any = projectToPreparedRoomPlan(project);
+    expect(file.sections.map((section: any) => section.displayName)).toContain('Living Room');
+    expect(file.sections.filter((section: object) => 'floorOpening' in section)).toEqual([]);
+    expect(file.stories).toEqual([{ index: 0, name: 'Ground Floor' }, { index: 1, name: 'Upper' }]);
+
+    const back = createProjectFromRoomPlan(JSON.parse(JSON.stringify(file)), 'Back');
+    expect(back.floors[0].rooms[0].name).toBe('Living Room');
+    expect(back.floors[0].rooms[0].floorOpening).toBeUndefined();
+    expect(back.floors.map(floor => [floor.elevation, floor.slabThickness])).toEqual([[undefined, undefined], [undefined, undefined]]);
+    expect(floorElevations(back.floors).map(entry => entry.elevation)).toEqual([0, 300]);
   });
 
   it('writes the documented element fields', () => {
@@ -286,6 +304,19 @@ describe('web project → prepared RoomPlan JSON → web project', () => {
     const named = (name: string) => back.floors[0].rooms.find(r => r.name === name)!;
     expect(named('West').walls).toContain('a-3');
     expect(named('East').walls).toContain('b-1');
+  });
+
+  it('keeps the names of a hall and of the office built against its outer wall', () => {
+    const project = createDefaultProject('Hall');
+    const floor = project.floors[0];
+    const leg = (id: string, x: number, y: number, xx: number, yy: number) => ({ ...rectangleWalls()[0], id, start: { x, y }, end: { x: xx, y: yy } });
+    floor.walls = [leg('north', 0, 0, 4000, 0), leg('east', 4000, 0, 4000, 3000), leg('south', 4000, 3000, 0, 3000), leg('west', 0, 3000, 0, 0),
+      leg('office-west', 1500, 0, 1500, 1700), leg('office-south', 1500, 1700, 2500, 1700), leg('office-east', 2500, 1700, 2500, 0)];
+    floor.rooms = resolveRooms(floor).map(room => ({ ...room, name: room.walls.includes('south') ? 'Hall' : 'Office' }));
+    // The hall's section anchor must not land in the office, which its outline used to include.
+    const back = createProjectFromRoomPlan(JSON.parse(JSON.stringify(projectToPreparedRoomPlan(project))), 'Back');
+    expect(back.floors[0].rooms.map(({ name, area, walls }) => ({ name, area, south: walls.includes('south') }))
+      .sort((a, b) => a.name.localeCompare(b.name))).toEqual([{ name: 'Hall', area: 1030, south: true }, { name: 'Office', area: 170, south: false }]);
   });
 
   it('keeps retained interchange state through the native project reader and rejects damaged state', () => {

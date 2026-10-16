@@ -88,7 +88,7 @@
 
   function addToRecent(id: string) {
     recentIds = [id, ...recentIds.filter(r => r !== id)].slice(0, MAX_RECENT);
-    localStorage.setItem(RECENT_KEY, JSON.stringify(recentIds));
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(recentIds)); } catch { /* Blocked or full storage: the list lasts for this session. */ }
   }
 
   let recentItems = $derived(
@@ -107,7 +107,7 @@
     } else {
       favoriteIds = [...favoriteIds, id];
     }
-    localStorage.setItem(FAV_KEY, JSON.stringify(favoriteIds));
+    try { localStorage.setItem(FAV_KEY, JSON.stringify(favoriteIds)); } catch { /* Blocked or full storage: favorites last for this session. */ }
   }
 
   let favoriteItems = $derived(

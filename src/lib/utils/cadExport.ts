@@ -1,11 +1,12 @@
 import { drawEntourageDxf } from './entourageDxf';
 import type { Locale } from '$lib/i18n';
-import { furnitureName } from '$lib/i18n/furnitureNames';
+import { furnitureName, customModelName } from '$lib/i18n/furnitureNames';
 import { getEntourageDef } from './entourageCatalog';
 import { canvasSymbolDxf } from './canvasSymbolDxf';
 import { drawStair } from './canvasRenderer';
 import { columnPlanCorners } from './columnPlanGeometry';
 import { hasPlanExportContent } from './planExportContent';
+import { cadText } from './exportText';
 import { dimensionPlanGeometry } from './dimensionPlanGeometry';
 import { textAnnotationLines } from './textAnnotationLayout';
 import { doorSymbol } from './doorSymbol';
@@ -19,6 +20,8 @@ import { getCatalogItem, getFurnitureSize } from '$lib/utils/furnitureCatalog';
 import { resolveRooms, getRoomPolygon, roomLabelPosition } from '$lib/utils/roomDetection';
 import { roomHoles } from './roomNesting';
 import { projectSettings, formatArea, formatLength } from '$lib/stores/settings';
+import { currentPlanExportVisibility } from '$lib/stores/planVisibility';
+import { visibleActiveFloor, type PlanExportVisibility } from './exportVisibility';
 import { get } from 'svelte/store';
 
 function download(blob: Blob, filename: string) {
@@ -43,10 +46,22 @@ const LAYER_COLORS = {
 /** Plan (screen) radians to DXF degrees in [0, 360). */
 const cadDegrees = (radians: number) => ((radians * 180 / Math.PI) % 360 + 360) % 360;
 
-/** Returns whether a file was downloaded (an empty floor exports nothing). */
-export function exportDXF(project: Project, language: Locale = 'en'): boolean {
-  const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
-  if (!floor || !hasPlanExportContent(floor) && !(floor.entourage ?? []).some(e=>getEntourageDef(e.defId) && e.opacity!==0)) return false;
+/** What a CAD export did: true once the file is downloaded, otherwise why nothing was written. */
+export type CadExportResult = true | 'empty' | 'unsupported';
+
+/**
+ * Returns true once a file is downloaded. Otherwise nothing is written: 'empty' when the active
+ * floor has nothing to export, 'unsupported' when its only content is uploaded entourage images or
+ * entourage at 0% opacity, which the SVG, PNG and PDF exports draw but CAD linework cannot.
+ * Layers hidden in the 2D view are left out, as in PNG and SVG.
+ */
+export function exportDXF(project: Project, language: Locale = 'en', visibility: PlanExportVisibility = currentPlanExportVisibility()): CadExportResult {
+  const floor = visibleActiveFloor(project, visibility);
+  if (!floor) return 'empty';
+  const entourage = floor.entourage ?? [];
+  if (!hasPlanExportContent(floor) && !entourage.some(e=>getEntourageDef(e.defId) && e.opacity!==0)) {
+    return entourage.some(e=>getEntourageDef(e.defId) || project.customEntourage?.some(def=>def.id===e.defId)) ? 'unsupported' : 'empty';
+  }
 
   const d = new Drawing();
   d.setUnits('Centimeters');
@@ -64,18 +79,18 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
   d.setActiveLayer('ROOMS');
   const rooms = resolveRooms(floor);
   const polygons = rooms.map(room=>getRoomPolygon(room,floor.walls)), holes=roomHoles(polygons);
-  for (const [index, room] of rooms.entries()) {
+  for (const [index, room] of visibility.roomLabels ? rooms.entries() : []) {
     const poly = polygons[index];
     if (poly.length < 3) continue;
     const c = roomLabelPosition(room, poly, holes[index]);
     // Y is flipped in screen coords vs CAD coords
-    d.drawText(c.x, -c.y, 8, 0, room.name, 'center', 'middle');
+    d.drawText(c.x, -c.y, 8, 0, cadText(room.name), 'center', 'middle');
     d.drawText(c.x, -c.y - 12, 5, 0, `${formatArea(room.area, get(projectSettings).units)}`, 'center', 'middle');
   }
 
   // One continuous outline per wall run, separated by openings.
   d.setActiveLayer('WALLS');
-  for (const wall of floor.walls) {
+  for (const wall of visibility.walls ? floor.walls : []) {
     const openings = [...floor.doors, ...floor.windows].filter(o => o.wallId === wall.id);
     for (const outline of planWallOutlines(wall, openings)) {
       d.drawPolyline([...outline, outline[0]].map(p => [p.x, -p.y]));
@@ -91,13 +106,13 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
     d.setActiveLayer(layer); d.setTrueColor(parseInt(hex, 16));
     const { fontSize, lines } = textAnnotationLines(note), angle = note.rotation * Math.PI / 180;
     for (const line of lines) {
-      if (line.text) d.drawText(note.x - line.y * Math.sin(angle), -(note.y + line.y * Math.cos(angle)), fontSize, -note.rotation, line.text, 'center', 'middle');
+      if (line.text) d.drawText(note.x - line.y * Math.sin(angle), -(note.y + line.y * Math.cos(angle)), fontSize, -note.rotation, cadText(line.text), 'center', 'middle');
     }
   }
 
   // Draw dimensions
   d.setActiveLayer('DIMENSIONS');
-  for (const w of floor.walls) {
+  for (const w of visibility.wallDimensions ? floor.walls : []) {
     // Follows Settings → Measure walls like the editor and the other exports (issue #106).
     const { length: len, point: midpoint } = wallDimensionLabel(w, floor.walls, get(projectSettings).wallMeasureMode);
     const mx = midpoint.x;
@@ -114,7 +129,7 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
     for (const [point, sign] of [[g.start,1],[g.end,-1]] as const) {
       for (const side of [-1,1]) d.drawLine(point.x,-point.y,point.x+g.ux*7*sign+g.nx*3*side,-(point.y+g.uy*7*sign+g.ny*3*side));
     }
-    d.drawText(g.center.x,-g.center.y+4,11,0,note.label || formatLength(g.length,get(projectSettings).units),'center','bottom');
+    d.drawText(g.center.x,-g.center.y+4,11,0,cadText(note.label || formatLength(g.length,get(projectSettings).units)),'center','bottom');
   }
 
   d.addLayer('MEASUREMENTS', 1, 'DASHED');
@@ -202,7 +217,7 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
     }
 
     // Label
-    d.drawText(fx, fy, 4, 0, cat ? furnitureName(fi.catalogId, language) : 'Unknown furniture', 'center', 'middle');
+    d.drawText(fx, fy, 4, 0, cadText(customModelName(fi, project) ?? (cat ? furnitureName(fi.catalogId, language) : 'Unknown furniture')), 'center', 'middle');
   }
 
   d.addLayer('ENTOURAGE', 8, 'CONTINUOUS');
@@ -230,9 +245,9 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
 
 /**
  * DWG is a proprietary binary format with no JS writer, so the DXF (which AutoCAD,
- * SketchUp and FreeCAD open directly) is downloaded instead. Returns whether a file
- * was downloaded; the caller tells the user about the substitution.
+ * SketchUp and FreeCAD open directly) is downloaded instead. Returns what exportDXF
+ * returns; the caller tells the user about the substitution.
  */
-export function exportDWG(project: Project, language: Locale = 'en'): boolean {
-  return exportDXF(project, language);
+export function exportDWG(project: Project, language: Locale = 'en', visibility: PlanExportVisibility = currentPlanExportVisibility()): CadExportResult {
+  return exportDXF(project, language, visibility);
 }

@@ -239,9 +239,12 @@ and the retained blocks:
   types other than sliding → `fixed`; custom models export as their catalog
   box; stairs, columns, dimension and text annotations, measurements, guides,
   entourage, background images, colours, textures and item details are not
-  exported. An incoming section's `label` key is not retained, so a
-  `livingRoom` section comes back as `room` unless the room is named after
-  the type.
+  exported. Floor openings (**Open to floor below**) and floor elevations and
+  slab thicknesses are not represented either: a section has no opening flag
+  and a `stories` entry is only `{ index, name }`, so on import the room has
+  its slab again and each floor stands at level × 300 cm on a 5 cm slab. An
+  incoming section's `label` key is not retained, so a `livingRoom` section
+  comes back as `room` unless the room is named after the type.
 
 The output passes `validateRoomPlan` and shares no references with the
 project. `tests/sibling-interchange.test.ts` imports six files copied

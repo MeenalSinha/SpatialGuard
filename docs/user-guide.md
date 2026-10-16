@@ -42,11 +42,22 @@ version history are saved in this browser." (See
   (~50m²), 2-Bedroom House (~80m²), Open Concept Home (~100m²) and L-Shaped
   House (~120m²). Choosing one creates a new project from it.
 - Each card has a menu ("Project actions for …") with **Open**, **Rename**,
-  **Duplicate** and **Delete**. Deleting asks: "Delete “name” and its version
-  history from this browser? This cannot be undone."
+  **Duplicate** and **Delete**. On a desktop the menu button appears when you
+  point at a card. Deleting asks: "Delete “name” and its version history from
+  this browser? This cannot be undone."
+- **Duplicate** makes an independent copy named "… (Copy)", including the
+  edits you just made if you came straight from the editor. The copy is listed
+  first and outlined, and the line above the list reads "Duplicated as “…
+  (Copy)”." Rename it to tell your variations apart, since their previews look
+  alike. The editor itself has no duplicate command.
 - Below the header: **Download library backup**, **Restore library backup**,
   **Import project package** (see sections 10 and 12) and **User guide**,
   which opens this page in a new tab.
+- While the browser has not agreed to keep your projects (see "Persistent
+  storage" in [section 10](#10-saving-and-the-project-library)), a note
+  below those links reads "This browser may delete saved projects, for
+  example when it runs low on space. Use “Download library backup” regularly
+  to keep a copy." Its ✕ hides the note in this browser.
 
 ### First visit
 
@@ -54,6 +65,11 @@ With no projects yet, a **Welcome** screen offers **Start from Scratch**, **Use
 a Template**, **Import a Plan** ("Load a JSON or RoomPlan file"; this button
 accepts `.json` files only) and a four-step **Quick Tour**. Links at the bottom
 let you **Restore a library backup** or **Import a project package** instead.
+Both kinds of JSON backup load from here. **Import a Plan** opens a project
+from **Download JSON** in the editor, and hands a file from **Download library
+backup** to **Restore library backup**, which lists its projects before adding
+them as copies. **Restore a library backup** also takes a project from
+**Download JSON** and adds it as a copy.
 
 ### The editor at a glance
 
@@ -115,7 +131,8 @@ Useful while drawing:
 - **Snapping.** Endpoints snap to nearby wall ends and walls. The top-bar
   **Snap to Grid** button turns all snapping (grid, angle and magnetic) on or
   off. The **Snap** button in the status bar (**S**) switches between the
-  25 cm grid and a finer step. **G** shows or hides the grid.
+  25 cm grid and a finer step; while Snap to Grid is off it reads **Snap off**.
+  **G** shows or hides the grid.
 
 ### Editing walls
 
@@ -135,7 +152,7 @@ Press **V** (Select) and click a wall. The **Wall Properties** panel shows:
 On the canvas, with a wall selected:
 
 - **Move a corner:** drag either end handle. Walls joined at that corner follow.
-  The end snaps to nearby wall ends and walls and, with **Snap to Grid** on,
+  With **Snap to Grid** on, the end snaps to nearby wall ends and walls and
   onto a 0°, 45° or 90° line from the wall's other end — but only while the
   pointer is within about 15 screen pixels of that line (at any zoom), so a
   long wall no longer jumps sideways as you drag. Hold **Alt** (Option on a
@@ -227,6 +244,17 @@ Bay 200×150cm).
   (**Add Floor**) adds a new top floor seeded with **Exterior walls — current
   footprint**, **All walls — includes partitions** or an **Empty floor**.
   **Remove current floor** is available while there is more than one floor.
+- Building on a layout you already drew:
+  - For a variation of the whole plan (the shell, then the shell with doors
+    and windows), **Duplicate** the project in the library and edit the copy.
+  - For the next storey, **Add Floor** with **Exterior walls** or **All
+    walls**. Only walls are copied, from the floor you are on; doors, windows,
+    stairs, labels and room names stay on the floor where you placed them.
+  - To bring more than walls, select everything (**Ctrl+A**), copy
+    (**Ctrl+C**), switch floors and paste (**Ctrl+V**). Walls with their doors
+    and windows, stairs, labels and dimensions are pasted 30 cm down and to the
+    right of where they were, so drag the selection back into place. Room
+    names are not copied. There is no one-step "duplicate floor".
 - **Settings → Project → Floor elevations** sets each floor's "elevation (cm)"
   ("Set each floor's height above ground for stacked 3D. Use negative values
   for basements. Wall heights and other floors stay unchanged. Defaults are 300
@@ -340,8 +368,12 @@ furniture to walls) and the **Line Color** (white or dark). **Measure walls**
 chooses **Centerline** or **Edge to edge** ("Edge to edge shows the clear span
 between adjoining wall faces"); the PNG, SVG, DXF and PDF exports print wall
 lengths the same way, and a curved wall always shows its centreline length.
-The status bar's **Layers** popover can also hide **Automatic dimensions** and
-**Room Labels** temporarily.
+In the status bar's **Layers** popover, **Automatic dimensions** is the same
+switch as **Settings → Dimensions → Dimensions**, and **Room Labels** hides room
+names and areas until you turn it back on. The exports follow these switches:
+with automatic dimensions or **External Dimensions** off, the PNG, SVG, DXF
+and PDF exports leave the wall lengths out (see
+[section 11](#what-the-2d-exports-show)).
 
 ### Dimension tool (N)
 
@@ -364,7 +396,11 @@ type, and press Enter (Escape cancels). Double-click a note to edit it; the
 
 - **Rulers** (status bar) shows rulers; double-click a ruler to add a
   horizontal or vertical guide. Guides can be dragged and deleted.
-- **Grid** (**G**) shows the grid; **Snap** (**S**) toggles grid snapping.
+- **Grid** (**G**) shows the grid. **Snap** (**S**) switches the snap step
+  between the 25 cm grid and 10 cm and shows the step in use (9.8" or 3.9"
+  in feet and inches); **Snap to Grid** in the top bar turns snapping off.
+  While it is off, Snap reads **Snap off**, and **S** still picks the step
+  used once snapping is back on.
 - **Map** shows a mini-map of the whole floor for large plans.
 - Zoom with the mouse wheel or pinch; **F** fits the whole plan, **Shift+F**
   fits the selection. Pan with **Space+drag**, the middle mouse button, **Pan
@@ -376,7 +412,8 @@ type, and press Enter (Escape cancels). Double-click a note to edit it; the
 as Walls, Doors, Windows, Furniture, Entourage, Stairs, Columns, Guides,
 Measurements, Annotations, Text notes and Rooms. Each group can be hidden or
 shown, and clicking an entry selects it on the canvas — useful for small or
-overlapping items.
+overlapping items. A hidden group is also left out of Print Layout and the 2D
+exports (see [section 11](#what-the-2d-exports-show)).
 
 ## 8. 3D view and walkthrough
 
@@ -420,9 +457,10 @@ separate local render lab described in [render-lab.md](render-lab.md); it is
 not needed for normal use.
 
 Room floors come from **Floor Material** in 2D Room Properties; wall colours
-and textures from Wall Properties. The 3D view needs WebGL; if it stays on
-"Loading 3D viewer…" or is blank, check that hardware acceleration is enabled
-in the browser and that no extension blocks WebGL.
+and textures from Wall Properties. The 3D view needs WebGL; if the browser
+cannot start it, the view says "The 3D view needs WebGL, which this browser
+could not start. …" instead. Check that hardware acceleration is enabled in
+the browser and that no extension blocks WebGL; the 2D plan keeps working.
 
 ## 9. Settings
 
@@ -439,7 +477,8 @@ menu) has four tabs:
   stored in the browser, not in the project, so they apply to every project
   you open in this browser and are not included in JSON files. **Measure
   walls** also decides the wall lengths printed by the PNG, SVG, DXF and PDF
-  exports (see [section 11](#11-exporting-and-downloads)).
+  exports, and with **Dimensions** or **External Dimensions** off those exports
+  leave the wall lengths out (see [section 11](#what-the-2d-exports-show)).
 - **Appearance**: **Language** (English, Português) and **Theme** (Light,
   Dark, System).
 - **AI**: **Gemini API Key** ("Required for AI-powered photorealistic
@@ -468,14 +507,46 @@ storage (IndexedDB) for app.openplan3d.com. Nothing is sent to a server, which
 also means:
 
 - Another browser, another device, a private window, or a different browser
-  profile does not see your projects.
+  profile does not see your projects. Only <https://app.openplan3d.com>
+  opens this library; another address has a library of its own.
 - Clearing site data, cookies or "browsing data" for app.openplan3d.com
   deletes every project and its history. Private/incognito windows discard
   storage when closed. Browsers may also evict site storage when the disk is
-  nearly full.
+  nearly full (see "Persistent storage" below).
+- A browser set to delete site data when it closes deletes the library every
+  time it quits, including the restart that installs a browser update, even
+  though the restored tab looks as if it was never closed. In Firefox that is
+  **Settings → Privacy & Security → Cookies and Site Data → Delete cookies
+  and site data when Firefox is closed**, or **History** set to **Never
+  remember history**. Turn it off, or allow app.openplan3d.com as an
+  exception.
 - To keep your work safe, download a **library backup** regularly (below) or
   **Download JSON** for individual projects, and keep those files somewhere
   you control.
+
+### Persistent storage
+
+Browsers keep site data either as best-effort storage, which they may delete
+on their own to free space (Safari can also delete the data of sites you have
+not used for a while), or as persistent storage, which only you can delete.
+The first time you save work in a browser (creating, saving, copying,
+restoring or importing a project), OpenPlan3D asks once to keep the library
+in persistent storage. Opening a page never asks, and saving never waits for
+the answer.
+
+- Firefox asks whether to allow app.openplan3d.com to store data in
+  persistent storage: choose **Allow**. To change it later, open Page Info
+  (padlock in the address bar → **More information**) → **Permissions** →
+  **Store Data in Persistent Storage**.
+- Chrome, Edge and Safari decide without asking, based on how you use the
+  site (in Chrome, bookmarking it helps).
+
+Persistent storage only stops automatic cleanup. Clearing site data, a
+"delete on close" setting, a private window or another browser profile still
+removes or hides the library, so backups stay the copy you control. While the
+browser has not agreed to keep the library, the library page says so and
+recommends **Download library backup** (see
+[section 1](#the-project-library)).
 
 ### Version History
 
@@ -503,6 +574,13 @@ copies** adds them without overwriting anything. At most the latest 10 valid
 versions per project are restored; damaged entries are kept as recovery data
 and included in future backups.
 
+**Restore library backup** also takes a single project saved with **Download
+JSON** (or **Download JSON backup** in the red save bar), for example
+`Our house.json` or a second download named `Our house(1).json`. That is the
+quickest way back if browser storage was cleared: choose the file, check that
+the preview lists the project, and choose **Restore as copies**; it comes back
+as "Our house (Restored copy)".
+
 ### Save problems
 
 If a save fails, a red bar reads "Changes are not saved." followed by the
@@ -525,7 +603,7 @@ The **Export** button in the top bar opens:
 | Menu item | File you get | What it contains |
 | --- | --- | --- |
 | **Print Layout** (Ctrl+P) | `<project>-1-50.pdf` (or `-Fit to page.pdf`), or the browser print dialog | Active floor to a true scale on Letter or A4, with a room schedule page |
-| **Export 2D as PNG** | `<project>.png` | Active floor as an image: room fills, walls, openings, furniture symbols, dimensions, notes, with "<project> — <floor>" as a title; up to 2× resolution, at most 4096 px per side |
+| **Export 2D as PNG** | `<project>.png` | Active floor as an image of what the 2D plan shows: room fills and labels, walls and their lengths, openings, furniture symbols, stairs, columns, measurements, dimensions and notes, with "<project> — <floor>" as a title; up to 2× resolution, at most 4096 px per side |
 | **Export 3D as PNG** | `<project>-3d.png` | The 3D view of the active floor (the editor switches to 3D, renders, downloads, and returns to 2D) |
 | **Export as SVG** | `<project>.svg` | Vector drawing of the active floor; 1 unit = 1 cm; opens in Inkscape, Illustrator, browsers |
 | **Export as DXF** | `<project>.dxf` | CAD drawing of the active floor in centimetres with layers WALLS, DOORS, WINDOWS, FURNITURE, DIMENSIONS, ROOMS, STAIRS, COLUMNS |
@@ -535,7 +613,7 @@ The **Export** button in the top bar opens:
 | **Download project package** | `openplan3d-project.zip` | "For iPhone and web. Includes retained original data and attachments, even when they are not shown here." See below |
 | **Share with Assistant…** | nothing downloaded | Uploads a copy for seven days and gives you a code and secret (section 14) |
 | **Other planners** → **Open in OpenLandscape3D**, **Open in OpenKitchen3D**, **Open in OpenCatio3D** | nothing downloaded; a new tab | Opens that planner with the whole plan in the link (see "Opening a plan in another planner" below) |
-| **Download interchange JSON** | `<Project-Name>-openplan3d.json` | "For OpenKitchen3D, OpenLandscape3D, OpenCatio3D and the iPhone app. Opening another planner puts the whole plan in the link; nothing is uploaded." Walls, doors, windows, furniture and room labels in metres, plus anything one of those planners stored in the file |
+| **Download interchange JSON** | `<Project-Name>-openplan3d.json` | "For OpenKitchen3D, OpenLandscape3D, OpenCatio3D and the iPhone app. Opening another planner puts the whole file in the link; nothing is uploaded. The file carries the plan's geometry only; the project package keeps the full plan." Walls, doors, windows, furniture and room labels in metres, plus anything one of those planners stored in the file |
 | **Import JSON** | — | Opens a `.json` or RoomPlan `.zip` as a new project (section 12) |
 | **Import project package** | — | Opens the same **Import project package** dialog as the library page (section 12); after **Import as copy** the editor switches to the imported copy |
 | **New Project** | — | Saves the current plan and opens an empty one |
@@ -544,10 +622,19 @@ The **Export** button in the top bar opens:
 Browsers add " (1)", " (2)" and so on when a file with the same name already
 exists in the Downloads folder.
 
-If the active floor is empty, the image and PDF exports do nothing except show
-"Add walls, furniture, stairs, columns, entourage, notes or measurements to the
-active floor before exporting a PNG" (or "… a PDF"). Hidden layers and hidden
-furniture are still exported.
+If the active floor is empty, the 2D PNG, SVG, DXF, DWG and PDF exports do
+nothing except show "Add walls, furniture, stairs, columns, entourage, notes or
+measurements to the active floor before exporting a PNG" (or "… an SVG", "… a
+DXF", "… a DWG", "… a PDF"). If everything on it is on a hidden layer, they
+say "Everything on the active floor is on a hidden layer. …" instead (see
+[What the 2D exports show](#what-the-2d-exports-show)).
+
+DXF and DWG files hold CAD linework only, so they leave out uploaded entourage
+symbols and entourage at 0% opacity, which the SVG, PNG and PDF exports
+include. When those are all the active floor holds, Export as DXF and Export as
+DWG download nothing and say "A DXF can't include uploaded entourage symbols or
+entourage at 0% opacity, and the active floor has nothing else to export.
+Export as SVG, PNG or PDF instead." (or "A DWG …").
 
 ### Printing to scale (Print Layout)
 
@@ -556,7 +643,10 @@ furniture are still exported.
 - **Page:** Letter or A4. **Orientation:** Landscape or Portrait.
 - **Scale:** **Fit to page**, 1:25, 1:50, 1:100 or 1:200. If the plan does not
   fit you will read "The plan does not fit at this scale. Choose a smaller
-  scale, another orientation, or Fit to page."
+  scale, another orientation, or Fit to page." Room labels, notes and the
+  captions of stairs, measurements and dimensions count as part of the plan,
+  so **Fit to page** keeps them whole on the sheet. Lettering keeps a minimum
+  size on paper, so at small scales it takes up more of the plan.
 - **Download PDF** saves `<project>-1-50.pdf` (the scale is part of the name);
   **Print** opens the browser's print dialog for the same page.
 - The sheet shows the project name and "Scale: 1:50"; the PDF also includes
@@ -579,6 +669,36 @@ it to render, then choose **Export → Export as PDF**. Exporting from 2D gives
 view and try again to include it." It is not printed to a fixed scale; use
 **Print Layout** for that.
 
+### What the 2D exports show
+
+Print Layout, **Export 2D as PNG**, **Export as SVG**, **Export as DXF** /
+**DWG** and **Export as PDF** draw the active floor the way the 2D plan shows
+it. Hide what you do not want on paper before exporting — for example, turn
+off automatic dimensions for an outline of the shell without estimated
+lengths. Everything that shows by default is exported by default.
+
+| On screen | Left out of the exports while it is off |
+| --- | --- |
+| **Settings → Dimensions → Dimensions**, or **Automatic dimensions** in the status bar's **Layers** popover (the same switch) | Automatic wall lengths, and the room width × depth that Print Layout prints with **Internal Dimensions** on |
+| **Settings → Dimensions → External Dimensions** | Automatic wall lengths |
+| **Settings → Dimensions → Internal Dimensions** (off by default) | Room width × depth, which only Print Layout prints |
+| A group in **Layers** (**L**), or its checkbox in the status bar's **Layers** popover: Walls, Doors, Windows, Furniture, Entourage, Stairs, Columns, Measurements, Annotations (**Dimensions** in the popover: the Dimension tool's lines), Text notes | That group. Hidden walls take their lengths with them, but rooms stay filled because they are traced from the walls |
+| **Room Labels** in the status bar's **Layers** popover | Room names and areas |
+| **Furniture** in the status bar, **Toggle Furniture** in the top bar or **Show Furniture** in the **More** menu | Furniture (the same switch as the Furniture group) |
+
+The grid, guides, rulers, mini-map, selection handles, the distances shown
+while a door, window or furniture item is selected, and the Floor Below ghost
+are never exported; **Extension Lines**, **Object Distance** and **Line Color**
+only change the screen. The PDF's Room Schedule and summary always cover the
+whole floor. If every item on the active floor is hidden, the export says
+"Everything on the active floor is on a hidden layer. Exports show only what
+the 2D plan shows: turn the layers back on under Layers and export again."
+instead of saving an empty file, and Print Preview says "Everything on this
+floor is on a hidden layer. Turn its layers back on under Layers to print it."
+**Export 3D as PNG** shows the 3D view, which has no labels, notes or
+dimensions. JSON files, project packages and interchange files always contain
+everything.
+
 ### 3D images
 
 - **Export → Export 3D as PNG** gives `<project>-3d.png` from the main view.
@@ -591,7 +711,9 @@ view and try again to include it." It is not printed to a fixed scale; use
 
 - **Download JSON** — one project, everything the web editor knows, as plain
   text. Best for backups and for moving a project to another browser or
-  computer (**Import JSON**). Does not include version history.
+  computer: open it with **Import JSON** in the editor, **Import a Plan** on
+  the Welcome screen, or **Restore library backup** on the library page. Does
+  not include version history.
 - **Download project package** — one project as a ZIP for exchange with the
   OpenPlan3D iPhone app or another browser. It carries the plan, photos,
   custom models and any original iPhone data that was retained from an import,
@@ -600,7 +722,8 @@ view and try again to include it." It is not printed to a fixed scale; use
   format is described in
   [project-package-v1.md](project-package-v1.md).
 - **Download library backup** — every project in this browser plus version
-  history and previews, restored with **Restore library backup**.
+  history and previews, restored with **Restore library backup** (choosing it
+  in **Import JSON** or **Import a Plan** opens the same dialog).
 
 Do not re-zip or edit a package with another tool; only packages written by
 OpenPlan3D are accepted ("Unsupported ZIP layout. Export a new project package
@@ -631,11 +754,13 @@ file. Under the **Other planners** caption of the Export menu:
 The file carries walls, doors, windows, furniture, room names and colours and
 floor names, in metres. It does not carry stairs, columns, dimension or text
 notes, measurements, guides, entourage, background images, wall colours and
-textures or Item details; a curved wall travels as its straight chord, a
-sloping wall at its taller height, and door types other than single, double
-and sliding become the nearest of those. Anything a sibling planner stored in
-a file you imported (its cabinets, plants, areas or structures) is kept with
-your project and written back when you export, so a kitchen can go
+textures, Item details, **Open to floor below** or floor elevations and slab
+thicknesses (a plan that comes back through the file has a slab in every room
+and floors 300 cm apart on 5 cm slabs). A curved wall travels as its straight
+chord, a sloping wall at its taller height, and door types other than single,
+double and sliding become the nearest of those. Anything a sibling planner
+stored in a file you imported (its cabinets, plants, areas or structures) is
+kept with your project and written back when you export, so a kitchen can go
 OpenKitchen3D → OpenPlan3D → OpenKitchen3D without losing its cabinets — as
 long as you keep working from this project, its **Download JSON** or a library
 backup, not from a project package. OpenKitchen3D and OpenLandscape3D also
@@ -707,7 +832,11 @@ project (below).
   OpenCatio3D (`…-openplan3d.json`; see "Plans from OpenKitchen3D,
   OpenLandscape3D and OpenCatio3D" below);
 - a raw Apple RoomPlan `.json`;
-- a RoomPlan `.zip` that contains exactly one `room.json`.
+- a RoomPlan `.zip` that contains exactly one `room.json`;
+- a library backup (`openplan3d-library-backup.json`), which opens **Restore
+  library backup** with that file instead: it lists the projects, and
+  **Restore as copies** adds them to the library while the plan you are
+  editing stays open.
 
 RoomPlan files are converted to walls, doors, windows, rooms and furniture.
 Files that cannot be read show "Couldn't import plan" with the reason, and
@@ -879,7 +1008,7 @@ Press **?** in the editor to see this list on screen (**Copy All** copies it;
 | **M** | Measure tool |
 | **N** | Dimension (annotate) tool |
 | **T** | Text tool |
-| **S** | Toggle snap (status bar Snap) |
+| **S** | Switch snap step: 25 cm grid or 10 cm (status bar Snap) |
 | **G** | Toggle grid |
 | **F** / **Shift+F** | Zoom to fit / Fit selection |
 | **+** / **−** (also **=** / **_** and the numpad keys) | Zoom in / out, 25% steps between the minimum zoom and 1000% |
@@ -928,6 +1057,18 @@ Messages are quoted as the editor shows them.
   as JSON." — Site data is blocked (private window, strict privacy settings,
   or "Block all cookies"). Allow storage for app.openplan3d.com, or keep
   working and save with **Download JSON**.
+- Every project is gone and the library is empty ("No projects yet", or the
+  **Welcome** screen as on a first visit) — The browser started without this
+  site's saved data; OpenPlan3D only deletes a project when you choose
+  **Delete**. Check that the address is <https://app.openplan3d.com>, that
+  this is not a private window, and that the browser uses your usual
+  profile: after a reinstall Firefox can start with a new profile, and
+  about:profiles launches the previous one with its projects. Otherwise the
+  data was cleared (a "delete on close" setting, a cleanup tool, or the
+  browser freeing space; see "Persistent storage" in section 10) and only
+  your own files can bring it back: **Restore library backup** reads a
+  library backup, and **Import JSON** (Export menu) or **Import a Plan**
+  (Welcome screen) opens a project's JSON file.
 - "Could not save to browser storage. Download your project as JSON to keep a
   copy." — A general write failure; retry, and download JSON if it persists.
 - "This project changed or was deleted in another tab. Save your version as a
@@ -955,6 +1096,15 @@ Messages are quoted as the editor shows them.
   dataset or library backup." — You chose the wrong kind of file: library
   backups go to **Restore library backup**, RoomPlan ZIPs to **Import JSON** /
   **Import RoomPlan**.
+- "This is a RoomPlan scan or an interchange JSON file, not a backup. Open it
+  with Import JSON in the editor. No projects were restored." — **Restore
+  library backup** takes library backups and project files from **Download
+  JSON**; scans and `…-openplan3d.json` interchange files open with **Import
+  JSON**.
+- "This is a JSON file, not a project package. Open it with Restore library
+  backup on the Projects page or with Import JSON in the editor." — **Import
+  project package** takes only the `.zip` from **Download project package**
+  (its file picker hides other files unless you switch it to all files).
 - "The file must be a ZIP package under 64 MiB." / "Only regular, uncompressed
   package files are supported." / "Unsupported ZIP layout. Export a new project
   package from OpenPlan3D." — The package was re-zipped or edited by another
@@ -972,9 +1122,17 @@ Messages are quoted as the editor shows them.
 
 **Exporting**
 
+- "Everything on the active floor is on a hidden layer." — The exports draw
+  what the 2D plan shows; show the hidden groups again under **Layers**.
+  Dimensions, notes or furniture missing from an export are hidden the same
+  way (see "What the 2D exports show" in section 11).
 - "Couldn't export PDF" / "Couldn't export 2D PNG" with "Add walls, furniture,
   stairs, columns, entourage, notes or measurements to the active floor …" —
   The active floor is empty; switch floors.
+- "Couldn't export DXF" / "Couldn't export DWG" with "A DXF can't include
+  uploaded entourage symbols or entourage at 0% opacity …" — Those are all the
+  active floor holds. Use Export as SVG, Export 2D as PNG or Export as PDF, or
+  raise the symbol's opacity above 0%.
 - "PDF exported without the 3D view" — Open the 3D view, then export again.
 - "The 3D view could not be captured. Reopen the 3D view and try again." —
   The 3D canvas was not ready (or WebGL was lost); open 3D, wait, retry.

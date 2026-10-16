@@ -26,6 +26,7 @@ const keys: ServiceKey[] = [
   'projectService.backupJSON', 'projectService.backupFile', 'projectService.backupVersion',
   'projectService.backupProjects', 'projectService.backupThumbnails',
   'projectService.backupHistory', 'projectService.backupRecovery', 'projectService.backupEmpty',
+  'projectService.backupPlanFile', 'projectService.libraryBackupFile',
   'projectService.backupSavedJSON', 'projectService.backupSavedUnreadable',
   'projectService.backupIdMismatch', 'projectService.backupHistoryLimit',
   'projectService.backupHistoryUnreadable', 'projectService.backupPreviewUnsupported',
@@ -55,7 +56,7 @@ const packageKeys: ServiceKey[] = [
   'projectService.packageTooMany', 'projectService.packageLimit',
   'projectService.packageJSONSize', 'projectService.packageJSONUnreadable',
   'projectService.packageJSONDepth', 'projectService.packageJSONDuplicate',
-  'projectService.packageJSONObject', 'projectService.packageManifest',
+  'projectService.packageJSONObject', 'projectService.packageManifest', 'projectService.packageJSONFile',
 ];
 const packageMessages = new Map(packageKeys.map(key => [translate('en', key), key]));
 
