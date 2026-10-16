@@ -1,6 +1,8 @@
 import { mockStorage, failWrites } from './fixtures/indexeddb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { get } from 'svelte/store';
+import { translate } from '$lib/i18n';
 import { createDefaultProject } from '$lib/stores/project';
 
 // Every test gets fresh modules: "asked once" is per page, the localStorage flag per browser.
@@ -258,5 +260,11 @@ describe('library storage note', () => {
     expect(() => dismissStorageNote()).not.toThrow();
     expect(storageNoteDismissed()).toBe(true);
     await expect(checkStoragePersistence()).resolves.toBeNull();
+  });
+
+  it('is quoted in the user guide exactly as the library shows it', () => {
+    const guide = readFileSync(new URL('../docs/user-guide.md', import.meta.url), 'utf8').replace(/\s+/g, ' ');
+    expect(guide).toContain(`"${translate('en', 'library.storageNote', { backup: translate('en', 'library.backup') })}"`);
+    expect(guide).toContain('### Persistent storage');
   });
 });

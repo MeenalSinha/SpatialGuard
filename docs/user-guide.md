@@ -47,6 +47,11 @@ version history are saved in this browser." (See
 - Below the header: **Download library backup**, **Restore library backup**,
   **Import project package** (see sections 10 and 12) and **User guide**,
   which opens this page in a new tab.
+- While the browser has not agreed to keep your projects (see "Persistent
+  storage" in [section 10](#10-saving-and-the-project-library)), a note
+  below those links reads "This browser may delete saved projects, for
+  example when it runs low on space. Use “Download library backup” regularly
+  to keep a copy." Its ✕ hides the note in this browser.
 
 ### First visit
 
@@ -474,14 +479,46 @@ storage (IndexedDB) for app.openplan3d.com. Nothing is sent to a server, which
 also means:
 
 - Another browser, another device, a private window, or a different browser
-  profile does not see your projects.
+  profile does not see your projects. Only <https://app.openplan3d.com>
+  opens this library; another address has a library of its own.
 - Clearing site data, cookies or "browsing data" for app.openplan3d.com
   deletes every project and its history. Private/incognito windows discard
   storage when closed. Browsers may also evict site storage when the disk is
-  nearly full.
+  nearly full (see "Persistent storage" below).
+- A browser set to delete site data when it closes deletes the library every
+  time it quits, including the restart that installs a browser update, even
+  though the restored tab looks as if it was never closed. In Firefox that is
+  **Settings → Privacy & Security → Cookies and Site Data → Delete cookies
+  and site data when Firefox is closed**, or **History** set to **Never
+  remember history**. Turn it off, or allow app.openplan3d.com as an
+  exception.
 - To keep your work safe, download a **library backup** regularly (below) or
   **Download JSON** for individual projects, and keep those files somewhere
   you control.
+
+### Persistent storage
+
+Browsers keep site data either as best-effort storage, which they may delete
+on their own to free space (Safari can also delete the data of sites you have
+not used for a while), or as persistent storage, which only you can delete.
+The first time you save work in a browser (creating, saving, copying,
+restoring or importing a project), OpenPlan3D asks once to keep the library
+in persistent storage. Opening a page never asks, and saving never waits for
+the answer.
+
+- Firefox asks whether to allow app.openplan3d.com to store data in
+  persistent storage: choose **Allow**. To change it later, open Page Info
+  (padlock in the address bar → **More information**) → **Permissions** →
+  **Store Data in Persistent Storage**.
+- Chrome, Edge and Safari decide without asking, based on how you use the
+  site (in Chrome, bookmarking it helps).
+
+Persistent storage only stops automatic cleanup. Clearing site data, a
+"delete on close" setting, a private window or another browser profile still
+removes or hides the library, so backups stay the copy you control. While the
+browser has not agreed to keep the library, the library page says so and
+recommends **Download library backup** (see
+[section 1](#the-project-library)).
 
 ### Version History
 
@@ -944,6 +981,18 @@ Messages are quoted as the editor shows them.
   as JSON." — Site data is blocked (private window, strict privacy settings,
   or "Block all cookies"). Allow storage for app.openplan3d.com, or keep
   working and save with **Download JSON**.
+- Every project is gone and the library is empty ("No projects yet", or the
+  **Welcome** screen as on a first visit) — The browser started without this
+  site's saved data; OpenPlan3D only deletes a project when you choose
+  **Delete**. Check that the address is <https://app.openplan3d.com>, that
+  this is not a private window, and that the browser uses your usual
+  profile: after a reinstall Firefox can start with a new profile, and
+  about:profiles launches the previous one with its projects. Otherwise the
+  data was cleared (a "delete on close" setting, a cleanup tool, or the
+  browser freeing space; see "Persistent storage" in section 10) and only
+  your own files can bring it back: **Restore library backup** reads a
+  library backup, and **Import JSON** (Export menu) or **Import a Plan**
+  (Welcome screen) opens a project's JSON file.
 - "Could not save to browser storage. Download your project as JSON to keep a
   copy." — A general write failure; retry, and download JSON if it persists.
 - "This project changed or was deleted in another tab. Save your version as a
