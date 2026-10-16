@@ -1390,10 +1390,10 @@ export function moveTextAnnotation(id: string, position: { x: number; y: number 
   currentProject.set({ ...p });
 }
 
-// Layer visibility store (used by LayersPanel and FloorPlanCanvas)
-/** `floorBelow` is the dimmed reference underlay of the storey beneath the active one. */
-export const layerVisibility = writable<{ walls: boolean; doors: boolean; windows: boolean; furniture: boolean; stairs: boolean; columns: boolean; guides: boolean; measurements: boolean; annotations: boolean; textAnnotations: boolean; entourage: boolean; floorBelow: boolean }>({
-  walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, textAnnotations: true, entourage: true, floorBelow: true,
+// Layer visibility store (used by LayersPanel, FloorPlanCanvas and the plan exports)
+/** `floorBelow` is the dimmed reference underlay of the storey beneath the active one; `roomLabels` shows room names and areas. */
+export const layerVisibility = writable<{ walls: boolean; doors: boolean; windows: boolean; furniture: boolean; stairs: boolean; columns: boolean; guides: boolean; measurements: boolean; annotations: boolean; textAnnotations: boolean; entourage: boolean; floorBelow: boolean; roomLabels: boolean }>({
+  walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, textAnnotations: true, entourage: true, floorBelow: true, roomLabels: true,
 });
 
 // --- Lock ---

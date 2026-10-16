@@ -4,6 +4,8 @@ import { customModelName } from '$lib/i18n/furnitureNames';
 import { get } from 'svelte/store';
 import type { Project } from '$lib/models/types';
 import { projectSettings, formatArea } from '$lib/stores/settings';
+import { currentPlanExportVisibility } from '$lib/stores/planVisibility';
+import { visiblePlanFloor, type PlanExportVisibility } from './exportVisibility';
 import { resolveRooms } from './roomDetection';
 import { drawRooms, drawDoorOnWall, drawWindowOnWall, drawFurnitureItem, drawStair, drawColumn, drawAnnotations, drawPersistedMeasurements, drawTextAnnotations, drawEntourageItems } from './canvasRenderer';
 import { worldToScreen, type CanvasState } from './canvasInteraction';
@@ -15,9 +17,10 @@ const PIXELS_PER_MM = 6;
 /**
  * The sheet layout, with room for furniture captions. They are drawn at a fixed size on paper, so
  * their extent in plan centimetres grows as the scale shrinks; 'fit' settles it in a few passes.
+ * Layers hidden in the 2D view are left out, as in the other exports.
  */
-function sheetLayout(project: Project, options: PrintOptions, ctx: CanvasRenderingContext2D | null) {
-  const floor = activePrintFloor(project);
+function sheetLayout(project: Project, options: PrintOptions, ctx: CanvasRenderingContext2D | null, visibility: PlanExportVisibility) {
+  const source = activePrintFloor(project), floor = source && visiblePlanFloor(source, visibility);
   const bounds = floor && printBounds(floor, project.customEntourage);
   if (!bounds) return null;
   let layout = calculatePrintLayout(bounds, options);
@@ -35,10 +38,10 @@ function sheetLayout(project: Project, options: PrintOptions, ctx: CanvasRenderi
   return { floor, layout };
 }
 
-/** Preview and PDF use the same fixed physical page, independent of screen size/DPR. */
-export function renderPrintPage(canvas: HTMLCanvasElement, project: Project, options: PrintOptions, language: Locale = 'en') {
+/** Preview and PDF use the same fixed physical page, independent of screen size/DPR. Layers hidden in the 2D view are left out. */
+export function renderPrintPage(canvas: HTMLCanvasElement, project: Project, options: PrintOptions, language: Locale = 'en', visibility: PlanExportVisibility = currentPlanExportVisibility()) {
   const ctx = canvas.getContext('2d')!;
-  const sheet = sheetLayout(project, options, ctx);
+  const sheet = sheetLayout(project, options, ctx, visibility);
   if (!sheet) return null;
   const { floor, layout } = sheet;
   const { pageWidth, pageHeight, area, center, mmPerCm } = layout;
@@ -68,10 +71,10 @@ export function renderPrintPage(canvas: HTMLCanvasElement, project: Project, opt
   ctx.scale(1 / PIXELS_PER_MM, 1 / PIXELS_PER_MM);
   const cs: CanvasState = { ctx, width: area.width * PIXELS_PER_MM, height: area.height * PIXELS_PER_MM, zoom: mmPerCm * PIXELS_PER_MM, camX: center.x, camY: center.y };
   const settings = get(projectSettings);
-  drawRooms(cs, floor, resolveRooms(floor), null, true, true, settings);
+  drawRooms(cs, floor, resolveRooms(floor), null, visibility.roomLabels, visibility.roomDimensions, settings);
   ctx.strokeStyle = '#334155';
   ctx.lineCap = 'round';
-  for (const wall of floor.walls) {
+  for (const wall of visibility.walls ? floor.walls : []) {
     const a = worldToScreen(cs, wall.start.x, wall.start.y), b = worldToScreen(cs, wall.end.x, wall.end.y);
     ctx.lineWidth = wall.thickness * cs.zoom;
     ctx.beginPath(); ctx.moveTo(a.x, a.y);
@@ -102,8 +105,8 @@ export function renderPrintPage(canvas: HTMLCanvasElement, project: Project, opt
   return layout;
 }
 
-export function createPrintPDF(canvas: HTMLCanvasElement, project: Project, options: PrintOptions, language: Locale = 'en') {
-  const sheet = sheetLayout(project, options, canvas.getContext('2d'));
+export function createPrintPDF(canvas: HTMLCanvasElement, project: Project, options: PrintOptions, language: Locale = 'en', visibility: PlanExportVisibility = currentPlanExportVisibility()) {
+  const sheet = sheetLayout(project, options, canvas.getContext('2d'), visibility);
   if (!sheet) throw new Error(translate(language, 'print.empty'));
   const { floor, layout } = sheet;
   if (!layout.fits) throw new Error(translate(language, 'print.pdfOverflow'));

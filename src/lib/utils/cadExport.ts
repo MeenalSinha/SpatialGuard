@@ -20,6 +20,8 @@ import { getCatalogItem, getFurnitureSize } from '$lib/utils/furnitureCatalog';
 import { resolveRooms, getRoomPolygon, roomLabelPosition } from '$lib/utils/roomDetection';
 import { roomHoles } from './roomNesting';
 import { projectSettings, formatArea, formatLength } from '$lib/stores/settings';
+import { currentPlanExportVisibility } from '$lib/stores/planVisibility';
+import { visibleActiveFloor, type PlanExportVisibility } from './exportVisibility';
 import { get } from 'svelte/store';
 
 function download(blob: Blob, filename: string) {
@@ -51,9 +53,10 @@ export type CadExportResult = true | 'empty' | 'unsupported';
  * Returns true once a file is downloaded. Otherwise nothing is written: 'empty' when the active
  * floor has nothing to export, 'unsupported' when its only content is uploaded entourage images or
  * entourage at 0% opacity, which the SVG, PNG and PDF exports draw but CAD linework cannot.
+ * Layers hidden in the 2D view are left out, as in PNG and SVG.
  */
-export function exportDXF(project: Project, language: Locale = 'en'): CadExportResult {
-  const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
+export function exportDXF(project: Project, language: Locale = 'en', visibility: PlanExportVisibility = currentPlanExportVisibility()): CadExportResult {
+  const floor = visibleActiveFloor(project, visibility);
   if (!floor) return 'empty';
   const entourage = floor.entourage ?? [];
   if (!hasPlanExportContent(floor) && !entourage.some(e=>getEntourageDef(e.defId) && e.opacity!==0)) {
@@ -76,7 +79,7 @@ export function exportDXF(project: Project, language: Locale = 'en'): CadExportR
   d.setActiveLayer('ROOMS');
   const rooms = resolveRooms(floor);
   const polygons = rooms.map(room=>getRoomPolygon(room,floor.walls)), holes=roomHoles(polygons);
-  for (const [index, room] of rooms.entries()) {
+  for (const [index, room] of visibility.roomLabels ? rooms.entries() : []) {
     const poly = polygons[index];
     if (poly.length < 3) continue;
     const c = roomLabelPosition(room, poly, holes[index]);
@@ -87,7 +90,7 @@ export function exportDXF(project: Project, language: Locale = 'en'): CadExportR
 
   // One continuous outline per wall run, separated by openings.
   d.setActiveLayer('WALLS');
-  for (const wall of floor.walls) {
+  for (const wall of visibility.walls ? floor.walls : []) {
     const openings = [...floor.doors, ...floor.windows].filter(o => o.wallId === wall.id);
     for (const outline of planWallOutlines(wall, openings)) {
       d.drawPolyline([...outline, outline[0]].map(p => [p.x, -p.y]));
@@ -109,7 +112,7 @@ export function exportDXF(project: Project, language: Locale = 'en'): CadExportR
 
   // Draw dimensions
   d.setActiveLayer('DIMENSIONS');
-  for (const w of floor.walls) {
+  for (const w of visibility.wallDimensions ? floor.walls : []) {
     // Follows Settings → Measure walls like the editor and the other exports (issue #106).
     const { length: len, point: midpoint } = wallDimensionLabel(w, floor.walls, get(projectSettings).wallMeasureMode);
     const mx = midpoint.x;
@@ -245,6 +248,6 @@ export function exportDXF(project: Project, language: Locale = 'en'): CadExportR
  * SketchUp and FreeCAD open directly) is downloaded instead. Returns what exportDXF
  * returns; the caller tells the user about the substitution.
  */
-export function exportDWG(project: Project, language: Locale = 'en'): CadExportResult {
-  return exportDXF(project, language);
+export function exportDWG(project: Project, language: Locale = 'en', visibility: PlanExportVisibility = currentPlanExportVisibility()): CadExportResult {
+  return exportDXF(project, language, visibility);
 }

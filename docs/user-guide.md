@@ -368,8 +368,12 @@ furniture to walls) and the **Line Color** (white or dark). **Measure walls**
 chooses **Centerline** or **Edge to edge** ("Edge to edge shows the clear span
 between adjoining wall faces"); the PNG, SVG, DXF and PDF exports print wall
 lengths the same way, and a curved wall always shows its centreline length.
-The status bar's **Layers** popover can also hide **Automatic dimensions** and
-**Room Labels** temporarily.
+In the status bar's **Layers** popover, **Automatic dimensions** is the same
+switch as **Settings → Dimensions → Dimensions**, and **Room Labels** hides room
+names and areas until you turn it back on. The exports follow these switches:
+with automatic dimensions or **External Dimensions** off, the PNG, SVG, DXF
+and PDF exports leave the wall lengths out (see
+[section 11](#what-the-2d-exports-show)).
 
 ### Dimension tool (N)
 
@@ -408,7 +412,8 @@ type, and press Enter (Escape cancels). Double-click a note to edit it; the
 as Walls, Doors, Windows, Furniture, Entourage, Stairs, Columns, Guides,
 Measurements, Annotations, Text notes and Rooms. Each group can be hidden or
 shown, and clicking an entry selects it on the canvas — useful for small or
-overlapping items.
+overlapping items. A hidden group is also left out of Print Layout and the 2D
+exports (see [section 11](#what-the-2d-exports-show)).
 
 ## 8. 3D view and walkthrough
 
@@ -472,7 +477,8 @@ menu) has four tabs:
   stored in the browser, not in the project, so they apply to every project
   you open in this browser and are not included in JSON files. **Measure
   walls** also decides the wall lengths printed by the PNG, SVG, DXF and PDF
-  exports (see [section 11](#11-exporting-and-downloads)).
+  exports, and with **Dimensions** or **External Dimensions** off those exports
+  leave the wall lengths out (see [section 11](#what-the-2d-exports-show)).
 - **Appearance**: **Language** (English, Português) and **Theme** (Light,
   Dark, System).
 - **AI**: **Gemini API Key** ("Required for AI-powered photorealistic
@@ -597,7 +603,7 @@ The **Export** button in the top bar opens:
 | Menu item | File you get | What it contains |
 | --- | --- | --- |
 | **Print Layout** (Ctrl+P) | `<project>-1-50.pdf` (or `-Fit to page.pdf`), or the browser print dialog | Active floor to a true scale on Letter or A4, with a room schedule page |
-| **Export 2D as PNG** | `<project>.png` | Active floor as an image: room fills, walls, openings, furniture symbols, dimensions, notes, with "<project> — <floor>" as a title; up to 2× resolution, at most 4096 px per side |
+| **Export 2D as PNG** | `<project>.png` | Active floor as an image of what the 2D plan shows: room fills and labels, walls and their lengths, openings, furniture symbols, stairs, columns, measurements, dimensions and notes, with "<project> — <floor>" as a title; up to 2× resolution, at most 4096 px per side |
 | **Export 3D as PNG** | `<project>-3d.png` | The 3D view of the active floor (the editor switches to 3D, renders, downloads, and returns to 2D) |
 | **Export as SVG** | `<project>.svg` | Vector drawing of the active floor; 1 unit = 1 cm; opens in Inkscape, Illustrator, browsers |
 | **Export as DXF** | `<project>.dxf` | CAD drawing of the active floor in centimetres with layers WALLS, DOORS, WINDOWS, FURNITURE, DIMENSIONS, ROOMS, STAIRS, COLUMNS |
@@ -619,8 +625,9 @@ exists in the Downloads folder.
 If the active floor is empty, the 2D PNG, SVG, DXF, DWG and PDF exports do
 nothing except show "Add walls, furniture, stairs, columns, entourage, notes or
 measurements to the active floor before exporting a PNG" (or "… an SVG", "… a
-DXF", "… a DWG", "… a PDF"). Hidden layers and hidden furniture are still
-exported.
+DXF", "… a DWG", "… a PDF"). If everything on it is on a hidden layer, they
+say "Everything on the active floor is on a hidden layer. …" instead (see
+[What the 2D exports show](#what-the-2d-exports-show)).
 
 DXF and DWG files hold CAD linework only, so they leave out uploaded entourage
 symbols and entourage at 0% opacity, which the SVG, PNG and PDF exports
@@ -658,6 +665,36 @@ it to render, then choose **Export → Export as PDF**. Exporting from 2D gives
 "PDF exported without the 3D view — The floor plan was exported. Reopen the 3D
 view and try again to include it." It is not printed to a fixed scale; use
 **Print Layout** for that.
+
+### What the 2D exports show
+
+Print Layout, **Export 2D as PNG**, **Export as SVG**, **Export as DXF** /
+**DWG** and **Export as PDF** draw the active floor the way the 2D plan shows
+it. Hide what you do not want on paper before exporting — for example, turn
+off automatic dimensions for an outline of the shell without estimated
+lengths. Everything that shows by default is exported by default.
+
+| On screen | Left out of the exports while it is off |
+| --- | --- |
+| **Settings → Dimensions → Dimensions**, or **Automatic dimensions** in the status bar's **Layers** popover (the same switch) | Automatic wall lengths, and the room width × depth that Print Layout prints with **Internal Dimensions** on |
+| **Settings → Dimensions → External Dimensions** | Automatic wall lengths |
+| **Settings → Dimensions → Internal Dimensions** (off by default) | Room width × depth, which only Print Layout prints |
+| A group in **Layers** (**L**), or its checkbox in the status bar's **Layers** popover: Walls, Doors, Windows, Furniture, Entourage, Stairs, Columns, Measurements, Annotations (**Dimensions** in the popover: the Dimension tool's lines), Text notes | That group. Hidden walls take their lengths with them, but rooms stay filled because they are traced from the walls |
+| **Room Labels** in the status bar's **Layers** popover | Room names and areas |
+| **Furniture** in the status bar, **Toggle Furniture** in the top bar or **Show Furniture** in the **More** menu | Furniture (the same switch as the Furniture group) |
+
+The grid, guides, rulers, mini-map, selection handles, the distances shown
+while a door, window or furniture item is selected, and the Floor Below ghost
+are never exported; **Extension Lines**, **Object Distance** and **Line Color**
+only change the screen. The PDF's Room Schedule and summary always cover the
+whole floor. If every item on the active floor is hidden, the export says
+"Everything on the active floor is on a hidden layer. Exports show only what
+the 2D plan shows: turn the layers back on under Layers and export again."
+instead of saving an empty file, and Print Preview says "Everything on this
+floor is on a hidden layer. Turn its layers back on under Layers to print it."
+**Export 3D as PNG** shows the 3D view, which has no labels, notes or
+dimensions. JSON files, project packages and interchange files always contain
+everything.
 
 ### 3D images
 
@@ -1082,6 +1119,10 @@ Messages are quoted as the editor shows them.
 
 **Exporting**
 
+- "Everything on the active floor is on a hidden layer." — The exports draw
+  what the 2D plan shows; show the hidden groups again under **Layers**.
+  Dimensions, notes or furniture missing from an export are hidden the same
+  way (see "What the 2D exports show" in section 11).
 - "Couldn't export PDF" / "Couldn't export 2D PNG" with "Add walls, furniture,
   stairs, columns, entourage, notes or measurements to the active floor …" —
   The active floor is empty; switch floors.

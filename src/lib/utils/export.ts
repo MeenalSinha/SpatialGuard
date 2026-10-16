@@ -24,6 +24,8 @@ import { resolveRooms, getRoomPolygon, roomLabelPosition } from '$lib/utils/room
 import { drawStair, drawFurnitureItem, drawColumn, drawDoorOnWall, drawWindowOnWall, drawEntourageItems, drawTextAnnotations, drawAnnotations, drawPersistedMeasurements } from '$lib/utils/canvasRenderer';
 import type { CanvasState } from '$lib/utils/canvasInteraction';
 import { projectSettings, formatArea, formatLength } from '$lib/stores/settings';
+import { currentPlanExportVisibility } from '$lib/stores/planVisibility';
+import { visibleActiveFloor, type PlanExportVisibility } from './exportVisibility';
 import { get } from 'svelte/store';
 import jsPDF from 'jspdf';
 import { escapeXml } from './exportText';
@@ -193,12 +195,13 @@ function drawOpeningsOnCanvas(
  * Renders all walls/rooms/doors/furniture onto an offscreen canvas
  * so the export isn't limited to the current viewport.
  */
-export async function exportAsPNG(canvas: HTMLCanvasElement | null, project?: Project) {
+export async function exportAsPNG(canvas: HTMLCanvasElement | null, project?: Project, visibility: PlanExportVisibility = currentPlanExportVisibility()) {
   const name = project?.name || 'floorplan';
 
   if (project) {
     const snapshot=structuredClone(project);
-    const floor = snapshot.floors.find(f => f.id === snapshot.activeFloorId) ?? snapshot.floors[0];
+    // Layers hidden in the 2D view are left out, like its room labels and automatic dimensions.
+    const floor = visibleActiveFloor(snapshot, visibility);
     const entourage=(floor?.entourage ?? []).flatMap(item=>{
       const def=getEntourageDef(item.defId),custom=def?undefined:snapshot.customEntourage?.find(d=>d.id===item.defId);
       return def || custom ? [{item,custom,aspect:def?.aspect ?? custom!.aspect}] : [];
@@ -225,7 +228,7 @@ export async function exportAsPNG(canvas: HTMLCanvasElement | null, project?: Pr
         bounds.maxX=Math.max(bounds.maxX,b.maxX+2);bounds.maxY=Math.max(bounds.maxY,b.maxY+2);
       }
       extendBoundsForOpenings(floor, bounds);
-      extendBoundsForRoomLabels(floor, bounds);
+      if (visibility.roomLabels) extendBoundsForRoomLabels(floor, bounds);
       extendBoundsForColumns(floor, bounds);
       extendBoundsForStairs(floor, bounds);
       extendBoundsForText(floor, bounds);
@@ -262,6 +265,7 @@ export async function exportAsPNG(canvas: HTMLCanvasElement | null, project?: Pr
         traceRoomRings(ctx, poly, holes[ri], p => ({x:p.x-minX+pad,y:p.y-minY+pad}));
         if (!room.floorOpening) ctx.fill('evenodd');
         ctx.globalAlpha = 1;
+        if (!visibility.roomLabels) continue;
         // Room label
         const c = roomLabelPosition(room, poly, holes[ri]);
         ctx.fillStyle = '#444';
@@ -276,13 +280,14 @@ export async function exportAsPNG(canvas: HTMLCanvasElement | null, project?: Pr
       // Draw walls
       ctx.strokeStyle = '#333';
       ctx.lineCap = 'round';
-      for (const wall of floor.walls) {
+      for (const wall of visibility.walls ? floor.walls : []) {
         ctx.lineWidth = wall.thickness;
         ctx.beginPath();
         ctx.moveTo(wall.start.x - minX + pad, wall.start.y - minY + pad);
         if (wall.curvePoint) ctx.quadraticCurveTo(wall.curvePoint.x - minX + pad, wall.curvePoint.y - minY + pad, wall.end.x - minX + pad, wall.end.y - minY + pad);
         else ctx.lineTo(wall.end.x - minX + pad, wall.end.y - minY + pad);
         ctx.stroke();
+        if (!visibility.wallDimensions) continue;
         // Dimension label
         const { length: len, point: midpoint } = wallDimensionLabel(wall, floor.walls, get(projectSettings).wallMeasureMode);
         const mx = midpoint.x - minX + pad;
@@ -333,9 +338,9 @@ export async function exportAsPNG(canvas: HTMLCanvasElement | null, project?: Pr
 
 export { downloadProjectJSON as exportAsJSON } from './projectBackup';
 
-/** Returns whether a file was downloaded (an empty floor exports nothing). */
-export function exportAsSVG(project: Project, language: Locale = 'en'): boolean {
-  const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
+/** Returns whether a file was downloaded (an empty floor exports nothing). Hidden layers are left out, as in PNG. */
+export function exportAsSVG(project: Project, language: Locale = 'en', visibility: PlanExportVisibility = currentPlanExportVisibility()): boolean {
+  const floor = visibleActiveFloor(project, visibility);
   if (!floor) return false;
   const entourage=(floor.entourage ?? []).flatMap(item=>{
     const def=getEntourageDef(item.defId), custom=def?undefined:project.customEntourage?.find(d=>d.id===item.defId);
@@ -364,7 +369,7 @@ export function exportAsSVG(project: Project, language: Locale = 'en'): boolean 
     svgBounds.maxX=Math.max(svgBounds.maxX,b.maxX+2);svgBounds.maxY=Math.max(svgBounds.maxY,b.maxY+2);
   }
   extendBoundsForOpenings(floor, svgBounds);
-  extendBoundsForRoomLabels(floor, svgBounds);
+  if (visibility.roomLabels) extendBoundsForRoomLabels(floor, svgBounds);
   extendBoundsForColumns(floor, svgBounds);
   extendBoundsForStairs(floor, svgBounds);
   extendBoundsForText(floor, svgBounds);
@@ -393,6 +398,7 @@ export function exportAsSVG(project: Project, language: Locale = 'en'): boolean 
       const d = [poly,...holes[ri]].map(ring => `M ${ring.map(p=>`${p.x-minX+pad},${p.y-minY+pad}`).join(' L ')} Z`).join(' ');
       paths += `  <path d="${d}" fill="${color}" fill-rule="evenodd" fill-opacity="0.4" stroke="none"/>\n`;
     } else paths += `  <polygon points="${pts}" fill="${color}" fill-opacity="0.4" stroke="none"/>\n`;
+    if (!visibility.roomLabels) continue;
     const c = roomLabelPosition(room, poly, holes[ri]);
     const cx = c.x - minX + pad;
     const cy = c.y - minY + pad;
@@ -400,13 +406,14 @@ export function exportAsSVG(project: Project, language: Locale = 'en'): boolean 
     paths += `  <text x="${cx}" y="${cy + 14}" text-anchor="middle" font-size="10" fill="#888" font-family="sans-serif">${formatArea(room.area, get(projectSettings).units)}</text>\n`;
   }
 
-  for (const w of floor.walls) {
+  for (const w of visibility.walls ? floor.walls : []) {
     const x1 = w.start.x - minX + pad;
     const y1 = w.start.y - minY + pad;
     const x2 = w.end.x - minX + pad;
     const y2 = w.end.y - minY + pad;
     if (w.curvePoint) paths += `  <path d="M ${x1} ${y1} Q ${w.curvePoint.x - minX + pad} ${w.curvePoint.y - minY + pad} ${x2} ${y2}" fill="none" stroke="#333" stroke-width="${w.thickness}" stroke-linecap="round"/>\n`;
     else paths += `  <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#333" stroke-width="${w.thickness}" stroke-linecap="round"/>\n`;
+    if (!visibility.wallDimensions) continue;
     // dimension label
     const { length: len, point: midpoint } = wallDimensionLabel(w, floor.walls, get(projectSettings).wallMeasureMode);
     const mx = midpoint.x - minX + pad;
@@ -615,9 +622,9 @@ export function exportAs3DPNG(renderer: { domElement: HTMLCanvasElement }) {
   });
 }
 
-export async function exportPDF(project: Project, language: Locale = 'en') {
+export async function exportPDF(project: Project, language: Locale = 'en', visibility: PlanExportVisibility = currentPlanExportVisibility()) {
   const snapshot=structuredClone(project);
-  const floor=snapshot.floors.find(f=>f.id===snapshot.activeFloorId) ?? snapshot.floors[0];
+  const floor=visibleActiveFloor(snapshot, visibility);
   const definitions=[...new Set((floor?.entourage ?? []).flatMap(item=>{
     const def=getEntourageDef(item.defId)?undefined:snapshot.customEntourage?.find(d=>d.id===item.defId);
     return def?[def]:[];
@@ -630,11 +637,11 @@ export async function exportPDF(project: Project, language: Locale = 'en') {
     if(context && !context.isContextLost()) capture.image=source.toDataURL('image/png');
   } catch { /* The completed plan can still export without the optional view. */ }
   const preparedImages=new Map(await Promise.all(definitions.map(async def=>[def.id,await prepareEntourageImage(def)] as const)));
-  return renderPDF(snapshot,preparedImages,capture,language);
+  return renderPDF(snapshot,preparedImages,capture,language,visibility);
 }
 
-function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImageElement>, capture: {width:number;height:number;image?:string}|null, language: Locale) {
-  const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
+function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImageElement>, capture: {width:number;height:number;image?:string}|null, language: Locale, visibility: PlanExportVisibility) {
+  const floor = visibleActiveFloor(project, visibility);
   if (!floor) return;
   const entourage=(floor.entourage ?? []).flatMap(item=>{
     const def=getEntourageDef(item.defId),custom=def?undefined:project.customEntourage?.find(d=>d.id===item.defId);
@@ -722,7 +729,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     pdfBounds.maxX=Math.max(pdfBounds.maxX,b.maxX+2);pdfBounds.maxY=Math.max(pdfBounds.maxY,b.maxY+2);
   }
   extendBoundsForOpenings(floor, pdfBounds);
-  extendBoundsForRoomLabels(floor, pdfBounds);
+  if (visibility.roomLabels) extendBoundsForRoomLabels(floor, pdfBounds);
   extendBoundsForColumns(floor, pdfBounds);
   extendBoundsForStairs(floor, pdfBounds);
   extendBoundsForText(floor, pdfBounds);
@@ -757,6 +764,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     traceRoomRings(ctx, poly, holes[ri], p => ({x:p.x-minX+pad,y:p.y-minY+pad}));
     if (!room.floorOpening) ctx.fill('evenodd');
     ctx.globalAlpha = 1;
+    if (!visibility.roomLabels) continue;
     const c = roomLabelPosition(room, poly, holes[ri]);
     ctx.fillStyle = '#444';
     ctx.font = 'bold 13px sans-serif';
@@ -770,13 +778,14 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   // Walls
   ctx.strokeStyle = '#333';
   ctx.lineCap = 'round';
-  for (const wall of floor.walls) {
+  for (const wall of visibility.walls ? floor.walls : []) {
     ctx.lineWidth = wall.thickness;
     ctx.beginPath();
     ctx.moveTo(wall.start.x - minX + pad, wall.start.y - minY + pad);
     if (wall.curvePoint) ctx.quadraticCurveTo(wall.curvePoint.x - minX + pad, wall.curvePoint.y - minY + pad, wall.end.x - minX + pad, wall.end.y - minY + pad);
         else ctx.lineTo(wall.end.x - minX + pad, wall.end.y - minY + pad);
     ctx.stroke();
+    if (!visibility.wallDimensions) continue;
     const { length: len, point: midpoint } = wallDimensionLabel(wall, floor.walls, settings.wallMeasureMode);
     const mx = midpoint.x - minX + pad;
     const my = midpoint.y - minY + pad;
@@ -893,7 +902,9 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     pdf.text(formatArea(totalArea, settings.units), tX + colWidths[0] + colWidths[1] + colWidths[2] + 3, tY + 5.5);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(80);
-    pdf.text(label('pdf.summary', { rooms: rooms.length, walls: floor.walls.length, doors: floor.doors.length, windows: floor.windows.length, furniture: floor.furniture.length }), tX, tY + 18);
+    // The summary counts the whole floor, including items on hidden layers.
+    const all = project.floors.find(f => f.id === floor.id) ?? floor;
+    pdf.text(label('pdf.summary', { rooms: rooms.length, walls: all.walls.length, doors: all.doors.length, windows: all.windows.length, furniture: all.furniture.length }), tX, tY + 18);
   }
 
   let omitted3D = Boolean(capture);

@@ -144,13 +144,14 @@
   let showRulers = $state(true);
 
   // Layer visibility toggles
-  let layerVis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, textAnnotations: true, entourage: true, floorBelow: true });
+  let layerVis = $state({ walls: true, doors: true, windows: true, furniture: true, stairs: true, columns: true, guides: true, measurements: true, annotations: true, textAnnotations: true, entourage: true, floorBelow: true, roomLabels: true });
   // Sync showFurnitureStore ↔ layerVisibility.furniture
   let showFurniture = $derived(layerVis.furniture);
   $effect(() => { showFurnitureStore.set(layerVis.furniture); });
   let showDoors = $derived(layerVis.doors);
   let showWindows = $derived(layerVis.windows);
-  let showRoomLabels = $state(true);
+  // Shared with the plan exports: Room Labels is a layer switch, Automatic dimensions is Settings → Dimensions → Dimensions.
+  let showRoomLabels = $derived(layerVis.roomLabels);
   let showDimensions = $state(true);
   let dimSettings: ProjectSettings = $state({
     units: 'metric', showDimensions: true, showExternalDimensions: true,
@@ -4109,11 +4110,11 @@
         <span>{floorBelow ? $t('layerVisibility.belowNamed', { name: floorBelow.name }) : $t('layerVisibility.below')}</span>
       </label>
       <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
-        <input type="checkbox" bind:checked={showRoomLabels} class="accent-blue-500" />
+        <input type="checkbox" checked={showRoomLabels} onchange={() => layerVisibility.update(v => ({ ...v, roomLabels: !v.roomLabels }))} class="accent-blue-500" />
         <span>{$t('layerVisibility.roomLabels')}</span>
       </label>
       <label class="flex items-center gap-2 py-0.5 cursor-pointer hover:bg-gray-50 rounded px-1">
-        <input type="checkbox" bind:checked={showDimensions} class="accent-blue-500" />
+        <input type="checkbox" checked={showDimensions} onchange={() => projectSettings.update(s => ({ ...s, showDimensions: !s.showDimensions }))} class="accent-blue-500" />
         <span>{$t('layerVisibility.automaticDimensions')}</span>
       </label>
     </div>
