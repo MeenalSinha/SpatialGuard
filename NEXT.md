@@ -4,6 +4,109 @@ The user-facing goal status is maintained in [STATUS.md](STATUS.md). Update it
 when implementation, validation, blockers or next priorities change; keep this
 file as the detailed backlog and evidence history.
 
+## Sibling interchange, CORS and five GitHub issues — October 15
+
+Web branch `fix/sibling-compat-and-open-issues`, uncommitted at the time of
+writing; nothing below is pushed or deployed. Dated record:
+[docs/reviews/2026-10-15-sibling-interchange-and-issues.md](docs/reviews/2026-10-15-sibling-interchange-and-issues.md).
+
+- **CORS on `POST /api/handoffs`** (`src/lib/server/handoffCors.ts`, the
+  route): `OPTIONS` answers 204 and every answer carries
+  `Access-Control-Allow-Origin` for the family's deployed origins only (apex
+  and `app.` hosts of openplan3d.com, openlandscape3d.com, openkitchen3d.com
+  and opencatio3d.com, plus `openkitchen3d-cloud.web.app` and
+  `.firebaseapp.com`, as an exact list; `http://localhost` / `127.0.0.1` only
+  with `HANDOFF_CORS_ALLOW_LOCAL=true`); never credentials; `Retry-After`
+  exposed. The
+  OpenLandscape3D and OpenCatio3D "Open in OpenPlan3D" buttons POST
+  cross-origin JSON; the live endpoint answered their preflight with 405 on
+  October 15, so they always fell back to a JSON download. Not deployed yet.
+- **Interchange export** (`src/lib/utils/interchange.ts`, `transferLink.ts`):
+  `projectToPreparedRoomPlan` writes the family's prepared RoomPlan JSON from
+  a web project; `siblingImportUrl` builds `<origin>/#/import/v1/<payload>`
+  links (unpadded base64url of raw-DEFLATE compact JSON, 262,144-character
+  cap; the kitchen origin is `https://openkitchen3d-cloud.web.app` until
+  app.openkitchen3d.com is live). Import keeps the `openkitchen3d` /
+  `openlandscape3d` / `opencatio3d` blocks, object attributes, `defaults` and
+  `planNotes` on `project.interchange` (validated by `readProject`, saved in
+  project JSON, not in the native package; **Add to this plan** merges them
+  too) and export writes them back without a `webProject` snapshot, with a
+  refreshed `building` and a ceiling default that follows the walls, and with
+  the family's link-privacy rules on links, checked against each sibling's
+  real fixtures (`tests/fixtures/siblings/`) and importers.
+  The Export menu gains **Other planners** → **Open in OpenLandscape3D /
+  OpenKitchen3D / OpenCatio3D** (new tab, plan in the link fragment, file
+  download when too large) and **Download interchange JSON**
+  (`<Project-Name>-openplan3d.json`).
+- **Issue #106** — PDF/PNG/SVG/DXF wall dimensions follow Settings → Measure
+  walls; curved walls keep centreline lengths (`wallDimensionLabel.ts`).
+- **Issue #104** — endpoint drag: the 45° snap only attracts within the
+  magnet's ~15 screen px whatever the wall length or zoom; Alt/Option = free
+  move, Shift = force the nearest 45° ray, a magnet join is kept
+  (`angleSnapWithin`, `FloorPlanCanvas.svelte`).
+- **Issue #103** — Build → Import RoomPlan → **Where to put it**: **Open as a
+  new project** (default) or **Add to this plan**; the scan lands 100 cm
+  right of the matching floor's content, ids are re-issued on collision,
+  rooms and names are kept, one Undo ("Added RoomPlan scan") removes it; the
+  new elements are selected with a clean editing context and the view fits
+  plan and scan together, and R rotates a multi-selection including walls
+  when the selected walls form a closed group (`roomplanMerge.ts`,
+  `stores/project.ts`, `BuildPanel.svelte`).
+- **Issue #102** — `docs/skills/openplan3d-plan-authoring/SKILL.md` with two
+  examples checked by `tests/skill-examples.test.ts`. **Issue #101** —
+  `docs/user-guide.md`, linked from the editor as **User guide**.
+- Website (`openplan3d-www`, uncommitted): the three planners are listed and
+  an FAQ entry explains the exchange.
+
+Verification, October 15, local, this working tree, after the adversarial
+review fixes below: `npm test` passed **1,325 tests in 134 files** (zero
+failures); `npm run check` found 0 errors and 0 warnings; the production build
+succeeded. Browser checks on that build, chromium only: 20 related specs
+(67 tests) passed before the review fixes, and the 11 specs (38 tests) most affected by
+them passed again afterwards, including the two new specs
+`tests/browser/roomplan-add-to-plan.spec.ts` and
+`tests/browser/interchange-export.spec.ts`. The nine new unit files: 147 tests
+(`handoff-cors` 39, `sibling-interchange` 36, `interchange` 18,
+`endpoint-drag-snap` 13, `roomplan-merge` 15, `interchange-ui` 8,
+`export-wall-measure-mode` 6, `transfer-link` 6, `skill-examples` 6; counts
+from `npx vitest run <file>`). The siblings' own parity suites against this
+checkout pass (OpenLandscape3D 6, OpenCatio3D 22, OpenKitchen3D Swift
+fixtures 4), and a session-scratch harness that feeds this editor's export to
+each sibling's real `fromOpenPlan` and `decodePayload` passes 4 cases per
+planner, including a web file with an embedded `webProject` whose wall edits
+made here arrive in OpenKitchen3D and OpenLandscape3D. Firefox, WebKit, full
+browser CI and physical devices have not run on this tree.
+
+Adversarial review (44 agents: four finders, two refuters per finding): 20
+findings, 17 confirmed, all addressed in this tree — retained blocks no longer
+re-emit `webProject`, refresh `building` and the ceiling default, and links
+apply the family's privacy rules; section anchors are interior points;
+**Add to this plan** keeps the sibling block and attributes and resets the
+editing context; walls rotate only as a closed group; the Export menu scrolls;
+the CORS allow-list is exact with local origins behind
+`HANDOFF_CORS_ALLOW_LOCAL`; the DXF export follows Measure walls; and the
+documentation passages the review called out were corrected.
+
+Open:
+
+- Deploy, then verify the live preflight (curl command in the record) and a
+  real "Open in OpenPlan3D" from OpenLandscape3D and OpenCatio3D.
+- Decide whether the native project package should carry
+  `project.interchange`; today it survives only in project JSON and library
+  backups.
+- Sibling contract questions: OpenPlan3D edits are not written back into the
+  retained blocks (a moved wall leaves the kitchen block as imported); the
+  format has no project-name slot beyond `<block>.name`; and OpenCatio3D
+  rebuilds its house from `site.walls` inside its block, so wall edits made
+  here do not reach its host walls until its importer prefers the top-level
+  arrays of a re-exported file.
+- Retain an incoming section `label` and a per-room ceiling on import; export
+  derives the label from the room type or name and the ceiling default from
+  wall heights.
+- Switch the OpenKitchen3D origin to app.openkitchen3d.com when it is live.
+- Issues #105 (iOS repository not yet public) and #30 (ops/billing) remain;
+  neither is a code change here.
+
 ## Assistant shares and remote MCP server — September 16
 
 Option A of the hosted connector design is implemented server-side and

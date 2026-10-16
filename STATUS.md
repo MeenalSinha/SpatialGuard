@@ -1,22 +1,30 @@
 # OpenPlan3D status
 
-Last verified: **September 13, 2026, 12:50 EDT**.
+Last verified: **October 15, 2026** (local unit suite, type check, build and
+chromium browser subset on the uncommitted web branch; see below).
 
-## Work paused by user
+## Work resumed — October 15
 
-Implementation and validation are paused at the user's request until access to
-the Asta 6 model is restored. The overall `NEXT.md` goal remains active and is
-not marked complete. No build, test, browser, or native QA job is running.
+Work resumed on the web branch `fix/sibling-compat-and-open-issues` to make the
+editor exchange plans with OpenKitchen3D, OpenLandscape3D and OpenCatio3D
+(interchange export, transfer links, retained sibling blocks, CORS on the
+handoff endpoint) and to close GitHub issues #101–#104 and #106. That work is
+**uncommitted** at the time of writing: not pushed and not deployed. See the dated record in
+[docs/reviews/2026-10-15-sibling-interchange-and-issues.md](docs/reviews/2026-10-15-sibling-interchange-and-issues.md)
+and the matching [NEXT](NEXT.md#sibling-interchange-cors-and-five-github-issues--october-15)
+section. The earlier pause (Asta 6 access) no longer applies to this work.
 
 ## Goal and overall state
 
 **Active goal: keep working on all outstanding issues in `NEXT.md`.**
 
-The goal is not complete. Recent fixes are committed and pushed, but broader fidelity work,
-physical-device testing, and release/cloud gates remain open.
+The goal is not complete. The October 15 sibling-interchange and issue fixes
+are implemented and unit-tested but not yet committed, pushed or deployed;
+broader fidelity work, physical-device testing, and release/cloud gates remain
+open.
 
-Web PR #95 has merged into `main` as `4bdc00d`; its development branch was
-removed from the remote and local checkout.
+Web `main` is at `d68cadf` (merged PR #100, MCP tool annotations); the current
+work sits on `fix/sibling-compat-and-open-issues` above it.
 
 This is the concise, maintained status page. Update it as implementation,
 validation, blockers, or priorities change during the goal. Keep the full scope
@@ -29,17 +37,26 @@ Remote state was checked when preparing this report.
 
 | Repository | Branch | Latest implementation checkpoint | Delivery |
 | --- | --- | --- | --- |
-| Web app: `openPlan3D` | `main` | `4bdc00d` — merged PR #95, including interior area comparison | Committed, pushed and merged; [PR #95](https://github.com/laanlabs/openPlan3D/pull/95) is merged |
-| Native app: `openplan3d-ios` | `codex/local-floorplan-render` | `bdaad71` — area convention baseline | Committed and pushed |
-| Website: `openplan3d-www` | `main` | `4802b01` — WebP image delivery and CDN caching | Committed and pushed; local checkout matches remote `main` |
+| Web app: `openPlan3D` | `fix/sibling-compat-and-open-issues` | Uncommitted working tree on top of `d68cadf` (merged PR #100): sibling interchange, handoff CORS, issues #101–#104 and #106 | **Not committed, not pushed, not deployed** at the time of writing |
+| Native app: `openplan3d-ios` | `marketing/youtube-shorts-drawing` | `f2c6ea1` — marketing Shorts; no native code change in this batch | Clean checkout; the earlier `codex/local-floorplan-render` work (`bdaad71`) is unchanged |
+| Website: `openplan3d-www` | `main` | `f1b0439` plus uncommitted edits listing OpenLandscape3D, OpenKitchen3D and OpenCatio3D and an FAQ entry on the exchange | Edits not committed or deployed |
 
-All three working trees are clean and match their remotes at this pause. The web
-development branch was removed after merge. Native app work remains on its own
-development branch. Pushing the
-website changes does not, by itself, verify a production deployment.
+The web and website working trees carry uncommitted October 15 changes; the
+native checkout is clean. Nothing from October 15 has been pushed or deployed.
+Pushing the website changes does not, by itself, verify a production deployment.
 
 ## Work completed with scoped verification
 
+- **Sibling planner interchange (October 15):** export of the family's
+  prepared RoomPlan JSON and `#/import/v1/` transfer links; the OpenKitchen3D /
+  OpenLandscape3D / OpenCatio3D blocks, object attributes, defaults and notes
+  survive import, save and re-export, verified against each sibling's real
+  fixtures; CORS on `/api/handoffs` for their "Open in OpenPlan3D" buttons.
+  Unit-tested only; not deployed.
+- **Issues #103, #104, #106 (October 15):** RoomPlan scans can be added to the
+  open plan, endpoint dragging no longer jumps with wall length, and plan
+  exports follow Measure walls. **Issues #101 and #102:** user guide and
+  plan-authoring skill.
 - **Website:** stronger links to the [OpenPlan3D App Store listing](https://apps.apple.com/us/app/openplan3d/id6759076170).
 - **Furniture reflection:** actual local-axis mirroring, unchanged rotation,
   duplication, native glyph/SceneKit rendering, SVG export, neutral-export face
@@ -64,6 +81,7 @@ website changes does not, by itself, verify a production deployment.
 
 | Check | Evidence and limits |
 | --- | --- |
+| Full web unit suite, October 15 (local) | **1,325 passed in 134 files**, zero failures, on the uncommitted `fix/sibling-compat-and-open-issues` tree after the adversarial-review fixes, including the nine new regression files (147 tests). `npm run check`: 0 errors, 0 warnings. Production build: passed. Chromium browser subset on that build: 20 related specs (67 tests) passed before the review fixes and the 11 specs (38 tests) most affected passed again after them. Sibling parity suites (6/22/4) and the cross-planner scratch harness (4 per planner) pass. Firefox, WebKit, full browser CI and devices have not run on this tree. |
 | Full native simulator suite | **265 passed, two optional integration skips, zero failures** on `2fc1dd9`, including the height properties UI source. Session `64276` exited 0; XCTest 130.573 seconds. |
 | Full native Catalyst suite | **265 passed, two optional integration skips, zero failures** on `8fdd1bf`. Session `25783` exited 0; XCTest 142.046 seconds. |
 | Later native package-merger regression | **Passed**, exit 0, 1.086 seconds, on `72906c0`. This is a focused regression, not a newer full native suite. |
@@ -157,15 +175,19 @@ qualifying the repair in the original failing environment.
 
 ## Next priorities
 
-1. Continue furniture fidelity and height editing usability; complete physical
+1. Commit and deploy `fix/sibling-compat-and-open-issues` (web and website);
+   then verify the live `OPTIONS /api/handoffs` preflight and a real handoff
+   from OpenLandscape3D and OpenCatio3D, run full browser CI, and decide
+   whether the native package should carry `project.interchange`.
+2. Continue furniture fidelity and height editing usability; complete physical
    iPhone/iPad handoff when a device is available. The Catalyst UI/package
    preservation check is complete, with its actual export retained as a fixture.
-2. Continue the nested-room Undo investigation. New state coverage verifies
+3. Continue the nested-room Undo investigation. New state coverage verifies
    grouped drag preview → saved edit → repeated Undo/Redo for saved and detected
    rooms: all 16 history/resolution/nesting tests passed. This excludes stale
    preview metadata for that sequence; browser event/draw ordering remains
    unproven and the original intermittent failure has no established root cause.
-3. Continue area alignment: Area Summary now shows a separate interior total
+4. Continue area alignment: Area Summary now shows a separate interior total
    and explicitly describes the existing centerline breakdown. The new wall-
    footprint calculation matches native's 10.64 m² rectangle baseline; 18
    geometry tests and all three localized browser workflows passed, as did
@@ -195,6 +217,7 @@ evidence, but there is still software work available; the overall goal is active
 ## Supporting records
 
 - [Detailed backlog and chronological evidence](NEXT.md)
+- [Sibling interchange, CORS and issues #101–#104/#106](docs/reviews/2026-10-15-sibling-interchange-and-issues.md)
 - [Furniture reflection implementation and verification](docs/reviews/2026-09-12-furniture-reflection.md)
 - [Project package contract](docs/project-package-v1.md)
 - [Local custom-model work](docs/reviews/2026-09-12-local-model-import.md)
