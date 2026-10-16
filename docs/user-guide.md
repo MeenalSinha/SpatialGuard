@@ -65,10 +65,11 @@ With no projects yet, a **Welcome** screen offers **Start from Scratch**, **Use
 a Template**, **Import a Plan** ("Load a JSON or RoomPlan file"; this button
 accepts `.json` files only) and a four-step **Quick Tour**. Links at the bottom
 let you **Restore a library backup** or **Import a project package** instead.
-Either JSON backup works with **Import a Plan** and with **Restore a library
-backup**: a project from **Download JSON** opens in the editor, and a file from
-**Download library backup** opens **Restore library backup**, which lists its
-projects before adding them as copies.
+Both kinds of JSON backup load from here. **Import a Plan** opens a project
+from **Download JSON** in the editor, and hands a file from **Download library
+backup** to **Restore library backup**, which lists its projects before adding
+them as copies. **Restore a library backup** also takes a project from
+**Download JSON** and adds it as a copy.
 
 ### The editor at a glance
 
