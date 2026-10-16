@@ -364,7 +364,9 @@ type, and press Enter (Escape cancels). Double-click a note to edit it; the
 
 - **Rulers** (status bar) shows rulers; double-click a ruler to add a
   horizontal or vertical guide. Guides can be dragged and deleted.
-- **Grid** (**G**) shows the grid; **Snap** (**S**) toggles grid snapping.
+- **Grid** (**G**) shows the grid. **Snap** (**S**) switches the snap step
+  between the 25 cm grid and 10 cm and shows the step in use (9.8" or 3.9"
+  in feet and inches); **Snap to Grid** in the top bar turns snapping off.
 - **Map** shows a mini-map of the whole floor for large plans.
 - Zoom with the mouse wheel or pinch; **F** fits the whole plan, **Shift+F**
   fits the selection. Pan with **Space+drag**, the middle mouse button, **Pan
@@ -880,7 +882,7 @@ Press **?** in the editor to see this list on screen (**Copy All** copies it;
 | **M** | Measure tool |
 | **N** | Dimension (annotate) tool |
 | **T** | Text tool |
-| **S** | Toggle snap (status bar Snap) |
+| **S** | Switch snap step: 25 cm grid or 10 cm (status bar Snap) |
 | **G** | Toggle grid |
 | **F** / **Shift+F** | Zoom to fit / Fit selection |
 | **+** / **−** (also **=** / **_** and the numpad keys) | Zoom in / out, 25% steps between the minimum zoom and 1000% |

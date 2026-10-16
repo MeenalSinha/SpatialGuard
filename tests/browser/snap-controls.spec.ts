@@ -37,3 +37,30 @@ test('the More actions Snap to Grid item shows the state the Command Palette set
   await expect(item).toHaveAttribute('aria-pressed', 'true');
   await expect(item).toHaveText('✓ Snap to Grid');
 });
+
+test('S and the status-bar Snap button switch the snap step and leave Snap to Grid alone', async ({ page }) => {
+  await page.goto('/editor');
+  const snapping = page.getByRole('button', { name: 'Snap to Grid', exact: true });
+  const step = page.getByTitle('Switch snap step: 25 cm grid or 10 cm (S)', { exact: true });
+  await expect(step).toHaveText('🧲 Snap 25 cm');
+  await expect(step).toHaveAttribute('aria-pressed', 'true');
+  await page.getByRole('button', { name: 'Save', exact: true }).press('s');
+  await expect(step).toHaveText('🧲 Snap 10 cm');
+  await expect(step).toHaveAttribute('aria-pressed', 'false');
+  await expect(snapping).toHaveAttribute('aria-pressed', 'true');
+  await step.click();
+  await expect(step).toHaveText('🧲 Snap 25 cm');
+  await snapping.click();
+  await expect(snapping).toHaveAttribute('aria-pressed', 'false');
+  await expect(step).toHaveText('🧲 Snap 25 cm');
+  await expect(step).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('the snap step reads in inches when the plan uses feet and inches', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('o3d_settings', JSON.stringify({ units: 'imperial' })));
+  await page.goto('/editor');
+  const step = page.getByTitle('Switch snap step: 9.8" grid or 3.9" (S)', { exact: true });
+  await expect(step).toHaveText('🧲 Snap 9.8"');
+  await page.getByRole('button', { name: 'Save', exact: true }).press('s');
+  await expect(step).toHaveText('🧲 Snap 3.9"');
+});
