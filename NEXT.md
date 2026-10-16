@@ -39,8 +39,11 @@ confirmed fifteen defects; all are fixed here with fixture-based regressions:
 - **Hit testing**: straight walls are hit across their painted body and the
   nearest wall wins, like curved walls (`hitTesting.ts`, `tests/wall-hit-testing.test.ts`).
 - **History semantics**: rename and description edits are history steps;
-  stale selection ids are pruned after Undo; `mutate` records nothing for a
-  no-op edit and `endUndoGroup` ignores timestamps (`stores/project.ts`,
+  the selection travels with each history entry, so Undo re-selects what was
+  selected before the step and Redo what was selected after it (Duplicate,
+  Undo, Redo, Delete removes the copies again), with ids the restored floor no
+  longer holds dropped; `mutate` records nothing for a no-op edit and
+  `endUndoGroup` ignores timestamps (`stores/project.ts`,
   `tests/history-semantics.test.ts`).
 - **Canvas**: stair/column placement cancels on Escape, on a tool change and
   via its own toggle button; dragging a room translates curved walls rigidly;

@@ -69,11 +69,16 @@ export const selectedElementIds = writable<Set<string>>(new Set());
 export const viewMode = writable<'2d' | '3d'>('2d');
 
 // Undo / Redo
+/** The canvas selection that went with a history state. It travels with the state so Undo leaves the
+ *  elements selected that the user had before the step and Redo the ones they had after it. */
+interface SelectionSnapshot { id: string | null; ids: string[] }
 interface UndoEntry {
   state: string;
   description: string;
   timestamp: number;
+  selection?: SelectionSnapshot;
 }
+const captureSelection = (): SelectionSnapshot => ({ id: get(selectedElementId), ids: [...get(selectedElementIds)] });
 const undoStack: UndoEntry[] = [];
 const redoStack: UndoEntry[] = [];
 function pushHistory(stack: UndoEntry[], entry: UndoEntry) {
@@ -120,6 +125,7 @@ function coalesceKeyFor(type: string, id: string, updates: Record<string, unknow
 // Undo grouping: batch multiple mutations into a single undo entry
 let undoGroupSnapshot: string | null = null;
 let undoGroupUpdatedAt: Project['updatedAt'] | undefined;
+let undoGroupSelection: SelectionSnapshot | undefined;
 let undoGroupDepth = 0;
 
 /** Begin an undo group. Nested calls are supported; only the outermost pair takes effect. */
@@ -128,6 +134,7 @@ export function beginUndoGroup() {
     const p = get(currentProject);
     undoGroupSnapshot = p ? JSON.stringify(p) : null;
     undoGroupUpdatedAt = p?.updatedAt;
+    undoGroupSelection = captureSelection();
   }
   undoGroupDepth++;
 }
@@ -137,16 +144,17 @@ export function endUndoGroup(description?: string) {
   if (undoGroupDepth <= 0) return;
   undoGroupDepth--;
   if (undoGroupDepth === 0) {
-    const before = undoGroupSnapshot, updatedAt = undoGroupUpdatedAt;
+    const before = undoGroupSnapshot, updatedAt = undoGroupUpdatedAt, selection = undoGroupSelection;
     const action = description || _nextDescription || 'Group action';
     undoGroupSnapshot = null;
     undoGroupUpdatedAt = undefined;
+    undoGroupSelection = undefined;
     _nextDescription = '';
     resetCoalescing();
     const project = get(currentProject);
     // Drag frames bump updatedAt; only changed content earns an entry and discards Redo.
     if (before === null || !project || JSON.stringify({ ...project, updatedAt }) === before) return;
-    pushHistory(undoStack, { state: before, description: action, timestamp: Date.now() });
+    pushHistory(undoStack, { state: before, description: action, timestamp: Date.now(), selection });
     redoStack.length = 0;
     syncHistoryStore();
   }
@@ -171,7 +179,7 @@ function snapshot(description?: string, coalesceKey?: string, state?: string) {
     redoStack.length = 0;
     return;
   }
-  pushHistory(undoStack, { state: state ?? JSON.stringify(p), description: description || _nextDescription || 'Edit', timestamp: now });
+  pushHistory(undoStack, { state: state ?? JSON.stringify(p), description: description || _nextDescription || 'Edit', timestamp: now, selection: captureSelection() });
   redoStack.length = 0;
   _nextDescription = '';
   _lastCoalesceKey = coalesceKey ?? null;
@@ -220,10 +228,15 @@ function pruneFloorContext(project: Project) {
   if (selected.some(id => !ids.has(id))) selectedElementIds.set(new Set(selected.filter(id => ids.has(id))));
 }
 
-function restoreHistoryProject(state: string) {
+/** Restore a history state with the selection recorded for it; entries without one keep the current selection, pruned. */
+function restoreHistoryProject(state: string, selection?: SelectionSnapshot) {
   const project = reviveDates(JSON.parse(state));
   if (get(currentProject)?.activeFloorId !== project.activeFloorId) clearFloorContext();
   currentProject.set(project);
+  if (selection) {
+    selectedElementId.set(selection.id);
+    selectedElementIds.set(new Set(selection.ids));
+  }
   pruneFloorContext(project);
 }
 
@@ -232,8 +245,8 @@ export function undo() {
   const prev = undoStack.pop();
   if (!prev) return;
   const cur = get(currentProject);
-  if (cur) pushHistory(redoStack, { state: JSON.stringify(cur), description: prev.description, timestamp: prev.timestamp });
-  restoreHistoryProject(prev.state);
+  if (cur) pushHistory(redoStack, { state: JSON.stringify(cur), description: prev.description, timestamp: prev.timestamp, selection: captureSelection() });
+  restoreHistoryProject(prev.state, prev.selection);
   syncHistoryStore();
 }
 
@@ -242,8 +255,8 @@ export function redo() {
   const next = redoStack.pop();
   if (!next) return;
   const cur = get(currentProject);
-  if (cur) pushHistory(undoStack, { state: JSON.stringify(cur), description: next.description, timestamp: next.timestamp });
-  restoreHistoryProject(next.state);
+  if (cur) pushHistory(undoStack, { state: JSON.stringify(cur), description: next.description, timestamp: next.timestamp, selection: captureSelection() });
+  restoreHistoryProject(next.state, next.selection);
   syncHistoryStore();
 }
 
@@ -259,13 +272,14 @@ export function jumpToUndoStep(targetIndex: number) {
   // Pair each redo state with the action that produced it, just as undo() does.
   // Publish only the final state rather than every intermediate project.
   const stepsBack = total - targetIndex;
-  let state = JSON.stringify(cur);
+  let state = JSON.stringify(cur), selection: SelectionSnapshot | undefined = captureSelection();
   for (let i = 0; i < stepsBack; i++) {
     const entry = undoStack.pop()!;
-    pushHistory(redoStack, { state, description: entry.description, timestamp: entry.timestamp });
+    pushHistory(redoStack, { state, description: entry.description, timestamp: entry.timestamp, selection });
     state = entry.state;
+    selection = entry.selection;
   }
-  restoreHistoryProject(state);
+  restoreHistoryProject(state, selection);
   syncHistoryStore();
 }
 
@@ -995,6 +1009,7 @@ export function loadProject(project: Project) {
   redoStack.length = 0;
   undoGroupDepth = 0;
   undoGroupSnapshot = null;
+  undoGroupSelection = undefined;
   _nextDescription = '';
   resetCoalescing();
   clearFloorContext();

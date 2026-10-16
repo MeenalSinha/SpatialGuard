@@ -2,7 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 import {
   addAnnotation, addColumn, addEntourageItem, addFurniture, addGuide, addMeasurement, addStair, addTextAnnotation, addWall,
-  beginUndoGroup, currentProject, detectedRoomsStore, elevationWallId, endUndoGroup, loadProject, moveColumn, moveEntourage,
+  beginUndoGroup, currentProject, detectedRoomsStore, duplicateSelection, elevationWallId, endUndoGroup, jumpToUndoStep, loadProject,
+  moveColumn, moveEntourage,
   moveFurniture, moveGuide, moveStair, moveTextAnnotation, moveWallEndpoint, moveWallGeometryDuringDrag, moveWallParallel, redo,
   removeElement, resizeEntourage, selectedElementId, selectedElementIds, selectedRoomId, setBackgroundImage,
   transformFurnitureDuringDrag, undo, undoHistoryStore, ungroupElements, updateAnnotation, updateColumn, updateMeasurement,
@@ -74,8 +75,9 @@ it('records the Settings description as one coalesced step and ignores an unchan
   expect(walls()).toBe(count + 1);
 });
 
-// B: a restore drops ids the restored floor no longer holds; deleting nothing records nothing.
-it('drops the selection Undo removed, so Delete neither records a step nor discards Redo', () => {
+// B: a restore brings back the selection that went with the state (Undo: before the step, Redo: after it);
+// ids the restored floor no longer holds are dropped, and deleting nothing records nothing.
+it('drops the selection Undo removed, so Delete neither records a step nor discards Redo, and Redo re-selects it', () => {
   beginUndoGroup();
   const id = addFurniture('sofa', { x: 100, y: 100 });
   selectedElementId.set(id);
@@ -88,10 +90,53 @@ it('drops the selection Undo removed, so Delete neither records a step nor disca
   redo();
   expect(floor().furniture).toHaveLength(1);
   expect(entries()).toEqual(['Placed furniture']);
+  expect(get(selectedElementId)).toBe(id);
 });
 
-it('keeps ids that still resolve after a restore and clears the rest', () => {
+it('Redo re-selects the copies Undo deselected, so Delete after Redo removes them', () => {
+  const a = addFurniture('sofa', { x: 100, y: 100 });
+  selectedElementIds.set(new Set([a]));
+  selectedElementId.set(a);
+  const copies = duplicateSelection(new Set([a]));
+  expect(copies).toHaveLength(1);
+  selectedElementIds.set(new Set(copies));
+  selectedElementId.set(copies[0]);
+  undo();
+  expect([...get(selectedElementIds)]).toEqual([a]);
+  expect(get(selectedElementId)).toBe(a);
+  redo();
+  expect([...get(selectedElementIds)]).toEqual(copies);
+  expect(get(selectedElementId)).toBe(copies[0]);
+  beginUndoGroup();
+  for (const id of get(selectedElementIds)) removeElement(id);
+  endUndoGroup('Deleted selection');
+  expect(floor().furniture.map(item => item.id)).toEqual([a]);
+  expect(entries().slice(-2)).toEqual(['Duplicated selection', 'Deleted selection']);
+  undo();
+  expect(floor().furniture.map(item => item.id)).toEqual([a, ...copies]);
+  expect([...get(selectedElementIds)]).toEqual(copies);
+});
+
+it('jumping back through the History panel restores the selection of that step, and Redo walks forward with it', () => {
+  const a = addFurniture('sofa', { x: 100, y: 100 });
+  selectedElementId.set(a);
+  const b = addFurniture('sofa', { x: 200, y: 200 });
+  selectedElementId.set(b);
+  const c = addFurniture('sofa', { x: 300, y: 300 });
+  selectedElementId.set(c);
+  jumpToUndoStep(1);
+  expect(floor().furniture.map(item => item.id)).toEqual([a]);
+  expect(get(selectedElementId)).toBe(a);
+  redo();
+  expect(get(selectedElementId)).toBe(b);
+  redo();
+  expect(floor().furniture.map(item => item.id)).toEqual([a, b, c]);
+  expect(get(selectedElementId)).toBe(c);
+});
+
+it('Undo brings back the selection before a step, Redo the one after it, and clears ids that no longer resolve', () => {
   detectedRoomsStore.set([{ id: 'kept-room', name: 'Hall', walls: ['a-0', 'a-1', 'a-2', 'a-3'], floorTexture: 'hardwood', area: 12 }]);
+  selectedElementIds.set(new Set(['a-0']));
   const wall = addWall({ x: 0, y: 500 }, { x: 100, y: 500 });
   elevationWallId.set(wall);
   selectedRoomId.set('kept-room');
@@ -111,6 +156,8 @@ it('keeps ids that still resolve after a restore and clears the rest', () => {
   expect(entries()).toEqual(['Added wall']);
   redo();
   expect(floor().furniture).toHaveLength(2);
+  expect([...get(selectedElementIds)]).toEqual([a, b, 'a-0']);
+  expect(get(selectedElementId)).toBe(a);
   selectedRoomId.set('gone-room');
   undo(); undo();
   expect(get(elevationWallId)).toBeNull();
