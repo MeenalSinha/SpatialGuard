@@ -4,7 +4,7 @@
   import { modalDialog } from '$lib/utils/modalDialog';
   import { projectSettings } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
-  import { currentProject, updateProjectName } from '$lib/stores/project';
+  import { currentProject, updateProjectDescription, updateProjectName } from '$lib/stores/project';
   import type { Project } from '$lib/models/types';
   import { themePreference, type ThemePreference } from '$lib/stores/theme';
   import OpenAISettings from '$lib/components/ai/OpenAISettings.svelte';
@@ -28,10 +28,7 @@
 
   function onDescriptionChange(e: Event) {
     projectDescription = (e.target as HTMLTextAreaElement).value;
-    currentProject.update((p) => {
-      if (p) return { ...p, description: projectDescription };
-      return p;
-    });
+    updateProjectDescription(projectDescription);
   }
   let activeTab = $state<'project' | 'dimensions' | 'appearance' | 'ai'>('project');
   let geminiKey = $state('');

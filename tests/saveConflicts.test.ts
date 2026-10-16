@@ -186,3 +186,12 @@ it('checks copy IDs against the library while holding the mutation lock', async 
   expect(copy.id).toBe('fresh-copy-id'); expect(uuid.mock.calls.length).toBeGreaterThanOrEqual(2);
   expect((await first.load(a.id))!.name).toBe(a.name);
 });
+
+it('keeps refusing the deleting tab\'s own retained revision, so re-importing it must take a new ID', async () => {
+  const { first, a } = await twoTabs();
+  await first.list(); await first.delete(a.id);
+  expect(await first.has(a.id)).toBe(false);
+  await expect(first.assertCurrent(a.id)).rejects.toBeInstanceOf(ProjectConflictError);
+  await expect(first.save(a)).rejects.toBeInstanceOf(ProjectConflictError);
+  expect(await rawRecords()).toEqual({});
+});

@@ -480,10 +480,12 @@ also means:
 ### Version History
 
 **Version History** (clock icon in the top bar) keeps up to 10 snapshots per
-project: one at "Session start" and then an "Auto-save" every 5 minutes
-("Versions are saved automatically every 5 minutes."). **Restore** loads a
-snapshot ("Restore this version? Current unsaved changes will be lost."), and
-**Clear all versions** deletes them. If the history cannot be read, the dialog
+project: one at "Session start", an "Auto-save" every 5 minutes while the plan
+has changed since the last snapshot ("Versions are saved automatically every 5
+minutes."), a "Manual save" when you press Ctrl+S, and a "Before restore" copy
+of the version you are replacing whenever you restore one. **Restore** loads a
+snapshot ("Restore this version? The current version is kept in Version
+History."), and **Clear all versions** deletes them. If the history cannot be read, the dialog
 offers **Download version backup** (`openplan3d-version-history-backup.json`).
 
 Version history is separate from **Undo** / **Redo** (Ctrl+Z / Ctrl+Y), which

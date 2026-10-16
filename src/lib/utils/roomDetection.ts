@@ -184,8 +184,10 @@ function detectSplitRooms(splitEdges: Edge[]): Room[] {
   const polygons: Point[][] = [];
   let roomCount = 0;
 
-  // A cycle cannot visit more edges than exist in the graph.
-  const maxCycleSteps = edges.length + 1;
+  // A face walks a dead-end wall inside a room out and back, so it can visit
+  // every undirected edge twice. Budget by directed edges, plus one step to
+  // observe the closing return to the starting directed edge.
+  const maxCycleSteps = 2 * edges.length + 1;
 
   for (const e of edges) {
     const si = findOrAddVertex(e.start);
@@ -199,11 +201,15 @@ function detectSplitRooms(splitEdges: Edge[]): Room[] {
       const wallIds: string[] = [];
       let cur = from;
       let next = to;
-      let valid = true;
+      let closed = false;
 
       for (let step = 0; step < maxCycleSteps; step++) {
+        // A face is closed when it returns to its starting directed edge. It
+        // may pass through `from` earlier (a dead-end branch hanging off it is
+        // walked out and back), so a return to the vertex alone is not closure.
+        if (step > 0 && cur === from && next === to) { closed = true; break; }
         const dk = `${cur}-${next}`;
-        if (usedDirected.has(dk)) { valid = false; break; }
+        if (usedDirected.has(dk)) break;
         usedDirected.add(dk);
         cycle.push(next);
 
@@ -212,14 +218,12 @@ function detectSplitRooms(splitEdges: Edge[]): Room[] {
         const edgeInfo = neighbors?.find(n => n.to === next);
         if (edgeInfo) wallIds.push(...edgeInfo.wallIds);
 
-        if (next === from && cycle.length > 3) break; // closed
-
         // Pick the next edge clockwise from the back direction at `next`.
         // This is the standard planar face-finding step and traces minimal
         // interior faces CCW (positive signed area) in math coordinates.
         const inAngle = Math.atan2(vertices[cur].y - vertices[next].y, vertices[cur].x - vertices[next].x);
         const neighbors2 = adj.get(next);
-        if (!neighbors2 || neighbors2.length === 0) { valid = false; break; }
+        if (!neighbors2 || neighbors2.length === 0) break;
 
         let bestIdx = -1;
         let bestDelta = Infinity;
@@ -235,13 +239,13 @@ function detectSplitRooms(splitEdges: Edge[]): Room[] {
             bestIdx = i;
           }
         }
-        if (bestIdx === -1) { valid = false; break; }
+        if (bestIdx === -1) break;
 
         cur = next;
         next = neighbors2[bestIdx].to;
       }
 
-      if (!valid || cycle[cycle.length - 1] !== from || cycle.length < 4) continue;
+      if (!closed || cycle.length < 4) continue;
 
       // Compute signed area using shoelace.
       // With this traversal (smallest CCW turn from the reverse-direction) in

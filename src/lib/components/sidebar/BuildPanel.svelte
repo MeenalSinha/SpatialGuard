@@ -11,6 +11,7 @@
   import { get } from 'svelte/store';
   import { activateMeasurementTool, selectedTool, placingFurnitureId, placingDoorType, placingWindowType, placingStair, addStair, placingColumn, placingColumnShape, activeFloor, setBackgroundImage, canvasCamX, canvasCamY, placingEntourageId, addCustomEntourage } from '$lib/stores/project';
   import type { Tool } from '$lib/stores/project';
+  import { toggleColumnPlacement, toggleStairPlacement } from '$lib/utils/placementArming';
   import type { Door, Window as Win, CustomEntourageDef } from '$lib/models/types';
   import { entourageCatalog, entourageCategories } from '$lib/utils/entourageCatalog';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
@@ -29,6 +30,7 @@
 
   let importError = $state<string | null>(null);
   let largeImageWarning = $state(false);
+  let unsupportedImage = $state(false);
 
   // AreaSummaryPanel moved to top bar dialog
   let activeTab = $state<'draw' | 'rooms' | 'objects'>('draw');
@@ -205,42 +207,47 @@
 
   let isPlacingColumn = $state(false);
   onDestroy(placingColumn.subscribe(v => { isPlacingColumn = v; }));
+  let placingColShape = $state<'round' | 'square'>('round');
+  onDestroy(placingColumnShape.subscribe(v => { placingColShape = v; }));
+  const columnArmed = (shape: 'round' | 'square') => isPlacingColumn && placingColShape === shape;
 
-  function onPlaceStair() {
-    placingStair.set(true);
-    selectedTool.set('select');
-    placingFurnitureId.set(null);
-  }
-
-  function onPlaceColumn(shape: 'round' | 'square') {
-    placingColumn.set(true);
-    placingColumnShape.set(shape);
-    selectedTool.set('select');
-    placingFurnitureId.set(null);
+  /** PNG, JPEG and GIF reach the iPhone package unchanged; any other decodable pick (WebP, BMP, …) is re-encoded as PNG so the package never drops it. */
+  async function tracingImageDataUrl(file: File): Promise<string | undefined> {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+    if (/^data:image\/(?:png|jpeg|gif);base64,/.test(dataUrl)) return dataUrl;
+    const image = new Image();
+    image.src = dataUrl;
+    await image.decode();
+    // Bound the canvas so a huge WebP or BMP cannot exhaust memory.
+    const scale = Math.min(1, Math.sqrt(24_000_000 / (image.naturalWidth * image.naturalHeight)));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(image.naturalWidth * scale); canvas.height = Math.round(image.naturalHeight * scale);
+    const context = canvas.getContext('2d');
+    if (!context) return undefined;
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const png = canvas.toDataURL('image/png');
+    return png.startsWith('data:image/png;base64,') ? png : undefined;
   }
 
   function onImportImage() {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/*';
+    // The formats a project package shares with iPhone, plus WebP, which is re-encoded as PNG.
+    input.accept = 'image/png,image/jpeg,image/gif,image/webp';
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return;
+      unsupportedImage = false;
+      const dataUrl = await tracingImageDataUrl(file).catch(() => undefined);
+      if (!dataUrl) { unsupportedImage = true; return; }
       // A large image still imports; the note under the button replaces the old blocking alert.
-      largeImageWarning = file.size > 5 * 1024 * 1024;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        setBackgroundImage({
-          dataUrl,
-          position: { x: 0, y: 0 },
-          scale: 1,
-          opacity: 0.4,
-          rotation: 0,
-          locked: false,
-        });
-      };
-      reader.readAsDataURL(file);
+      largeImageWarning = dataUrl.length * 3 / 4 > 5 * 1024 * 1024;
+      setBackgroundImage({ dataUrl, position: { x: 0, y: 0 }, scale: 1, opacity: 0.4, rotation: 0, locked: false });
     };
     input.click();
   }
@@ -425,7 +432,8 @@
         <h3 class="text-xs font-semibold text-gray-400 uppercase mb-2 mt-3">{$t('buildTools.structure')}</h3>
         <button
           class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {isPlacingStair ? 'bg-blue-50 text-slate-800 ring-1 ring-blue-200' : 'hover:bg-gray-50 text-gray-700'}"
-          onclick={onPlaceStair}
+          aria-pressed={isPlacingStair}
+          onclick={toggleStairPlacement}
         >
           <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center {isPlacingStair ? 'bg-blue-100' : ''}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 5h-5V2h-3v6h-4V5H7v6H2v3h5v3h3v-3h4v3h3v-6h5z"/></svg>
@@ -438,10 +446,11 @@
 
         <div class="flex gap-2">
           <button
-            class="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors {isPlacingColumn ? 'bg-blue-50 text-slate-800 ring-1 ring-blue-200' : 'hover:bg-gray-50 text-gray-700'}"
-            onclick={() => onPlaceColumn('round')}
+            class="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors {columnArmed('round') ? 'bg-blue-50 text-slate-800 ring-1 ring-blue-200' : 'hover:bg-gray-50 text-gray-700'}"
+            aria-pressed={columnArmed('round')}
+            onclick={() => toggleColumnPlacement('round')}
           >
-            <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center {isPlacingColumn ? 'bg-blue-100' : ''}">
+            <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center {columnArmed('round') ? 'bg-blue-100' : ''}">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="6"/><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
             </div>
             <div class="text-left">
@@ -449,10 +458,11 @@
             </div>
           </button>
           <button
-            class="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors {isPlacingColumn ? 'bg-blue-50 text-slate-800 ring-1 ring-blue-200' : 'hover:bg-gray-50 text-gray-700'}"
-            onclick={() => onPlaceColumn('square')}
+            class="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-colors {columnArmed('square') ? 'bg-blue-50 text-slate-800 ring-1 ring-blue-200' : 'hover:bg-gray-50 text-gray-700'}"
+            aria-pressed={columnArmed('square')}
+            onclick={() => toggleColumnPlacement('square')}
           >
-            <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center {isPlacingColumn ? 'bg-blue-100' : ''}">
+            <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center {columnArmed('square') ? 'bg-blue-100' : ''}">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12"/><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
             </div>
             <div class="text-left">
@@ -517,6 +527,12 @@
           <div role="status" class="mb-1 flex items-start justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
             <p><span class="font-semibold">{$t('buildTools.largeImageTitle')}</span> {$t('buildTools.largeImage')}</p>
             <button aria-label={$t('buildTools.largeImageDismiss')} class="rounded px-1 hover:bg-amber-100" onclick={() => largeImageWarning = false}>✕</button>
+          </div>
+        {/if}
+        {#if unsupportedImage}
+          <div role="alert" class="mb-1 flex items-start justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p>{$t('buildTools.imageUnsupported')}</p>
+            <button aria-label={$t('buildTools.largeImageDismiss')} class="rounded px-1 hover:bg-amber-100" onclick={() => unsupportedImage = false}>✕</button>
           </div>
         {/if}
         <button

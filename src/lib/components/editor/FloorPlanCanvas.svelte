@@ -34,6 +34,9 @@
   import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, drawFloorBelowGhost as _drawFloorBelowGhost, entourageAspect } from '$lib/utils/canvasRenderer';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { translatedOpeningPosition } from '$lib/utils/openingTranslation';
+  import { translatedWallGeometry, wallGeometryOf, type WallGeometry } from '$lib/utils/wallTranslation';
+  import { marqueeSelectionIds } from '$lib/utils/marqueeSelection';
+  import { isTracingImageType } from '$lib/utils/tracingImage';
   import { findRoomLabelAt as _findRoomLabelAt, positionOnWall, findWallAt as _findWallAt, findHandleAt as _findHandleAt, findFurnitureAt as _findFurnitureAt, findColumnAt as _findColumnAt, findStairAt as _findStairAt, findDoorAt as _findDoorAt, findWindowAt as _findWindowAt, findRoomAt as _findRoomAt, hitTestMeasurement as _hitTestMeasurement, hitTestAnnotation as _hitTestAnnotation, hitTestTextAnnotation as _hitTestTextAnnotation, findEntourageAt } from '$lib/utils/hitTesting';
 
   let canvas: HTMLCanvasElement;
@@ -231,7 +234,7 @@
   // Room drag state
   let draggingRoomId: string | null = $state(null);
   let roomDragStartMouse: Point = { x: 0, y: 0 };
-  let roomDragStartPositions: Map<string, { start: Point; end: Point }> = new Map();
+  let roomDragStartPositions: Map<string, WallGeometry> = new Map();
 
   // Wall endpoint drag state (includes all connected walls at the corner)
   let draggingWallEndpoint: { wallId: string; endpoint: 'start' | 'end' } | null = $state(null);
@@ -1820,6 +1823,9 @@
       if (t !== currentTool) {
         finishCanvasGesture();
         if (joinMode) doorJoinMode.set(null);
+        // Stair/column arming belongs to the select tool; another tool's click must not place one.
+        placingStair.set(false);
+        placingColumn.set(false);
         measureStart = null;
         measureEnd = null;
         annotationStart = null;
@@ -1839,7 +1845,7 @@
     const unsub10 = snapEnabled.subscribe((v) => { currentSnapEnabled = v; markDirty(); });
     const unsub_snapgrid = projectSettings.subscribe((s) => { currentSnapToGrid = s.snapToGrid; currentSnapToWalls = s.snapToWalls; currentGridSize = s.gridSize; markDirty(); });
     const unsub11 = placingStair.subscribe((v) => { isPlacingStair = v; markDirty(); });
-    const unsubEnt1 = placingEntourageId.subscribe((id) => { currentEntourageDefId = id; markDirty(); });
+    const unsubEnt1 = placingEntourageId.subscribe((id) => { currentEntourageDefId = id; if (id) { placingStair.set(false); placingColumn.set(false); } markDirty(); });
     const unsubEnt2 = currentProject.subscribe((pr) => {
       if (clipboard && clipboard.projectId !== pr?.id) clipboard = null;
       customEntourageDefs = pr?.customEntourage;
@@ -1903,7 +1909,7 @@
       if (clipboard && clipboard.ids.length > 0) return; // internal clipboard takes priority
       const files = e.clipboardData.files;
       for (let i = 0; i < files.length; i++) {
-        if (files[i].type.startsWith('image/')) {
+        if (isTracingImageType(files[i].type)) {
           e.preventDefault();
           const reader = new FileReader();
           reader.onload = () => {
@@ -2321,8 +2327,8 @@
       return;
     }
 
-    // Column placement (before select-mode handlers to avoid interception)
-    if (isPlacingColumn) {
+    // Column placement: a select-tool mode (before select-mode handlers to avoid interception)
+    if (isPlacingColumn && tool === 'select') {
       const pos = { x: snap(wp.x), y: snap(wp.y) };
       const id = addColumn(pos, placingColShape);
       selectedElementId.set(id);
@@ -2339,7 +2345,7 @@
       return;
     }
 
-    if (isPlacingStair) {
+    if (isPlacingStair && tool === 'select') {
       const pos = { x: snap(wp.x), y: snap(wp.y) };
       const id = addStair(pos);
       selectedElementId.set(id);
@@ -2639,7 +2645,7 @@
           roomDragStartPositions.clear();
           for (const wid of room.walls) {
             const w = currentFloor!.walls.find(wall => wall.id === wid);
-            if (w) roomDragStartPositions.set(wid, { start: { ...w.start }, end: { ...w.end } });
+            if (w) roomDragStartPositions.set(wid, wallGeometryOf(w));
           }
         } else {
           // Empty space — start marquee selection
@@ -2889,10 +2895,8 @@
       const rSnapStep = currentSnapToGrid ? currentGridSize : SNAP;
       const dx = Math.round((mousePos.x - roomDragStartMouse.x) / rSnapStep) * rSnapStep;
       const dy = Math.round((mousePos.y - roomDragStartMouse.y) / rSnapStep) * rSnapStep;
-      for (const [wid, orig] of roomDragStartPositions) {
-        moveWallEndpoint(wid, 'start', { x: orig.start.x + dx, y: orig.start.y + dy });
-        moveWallEndpoint(wid, 'end', { x: orig.end.x + dx, y: orig.end.y + dy });
-      }
+      // Rigid move of every boundary wall; a curved wall's control point travels with it.
+      for (const [wid, orig] of roomDragStartPositions) moveWallGeometryDuringDrag(wid, translatedWallGeometry(orig, dx, dy));
     }
     if (draggingCurveHandle && currentFloor) {
       const wall = currentFloor.walls.find(w => w.id === draggingCurveHandle);
@@ -3074,59 +3078,7 @@
       // Only treat as marquee if dragged at least a small distance
       if (marqueeW > 5 || marqueeH > 5) {
         const ids = new Set<string>(e.shiftKey ? currentSelectedIds : []);
-
-        function ptInRect(p: Point) {
-          return p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY;
-        }
-
-        // Walls: both endpoints inside
-        for (const w of currentFloor.walls) {
-          if (ptInRect(w.start) && ptInRect(w.end)) ids.add(w.id);
-        }
-        // Doors/windows: center point inside
-        for (const d of currentFloor.doors) {
-          const w = currentFloor.walls.find(w => w.id === d.wallId);
-          if (w) {
-            const cx = w.start.x + (w.end.x - w.start.x) * d.position;
-            const cy = w.start.y + (w.end.y - w.start.y) * d.position;
-            if (ptInRect({ x: cx, y: cy })) ids.add(d.id);
-          }
-        }
-        for (const win of currentFloor.windows) {
-          const w = currentFloor.walls.find(w => w.id === win.wallId);
-          if (w) {
-            const cx = w.start.x + (w.end.x - w.start.x) * win.position;
-            const cy = w.start.y + (w.end.y - w.start.y) * win.position;
-            if (ptInRect({ x: cx, y: cy })) ids.add(win.id);
-          }
-        }
-        // Furniture: center inside
-        for (const fi of currentFloor.furniture) {
-          if (ptInRect(fi.position)) ids.add(fi.id);
-        }
-        // Stairs: center inside
-        if (currentFloor.stairs) {
-          for (const st of currentFloor.stairs) {
-            if (ptInRect(st.position)) ids.add(st.id);
-          }
-        }
-        // Columns: center inside
-        if (currentFloor.columns) {
-          for (const col of currentFloor.columns) {
-            if (ptInRect(col.position)) ids.add(col.id);
-          }
-        }
-
-        for (const item of currentFloor.entourage ?? []) {
-          if (ptInRect(item.position)) ids.add(item.id);
-        }
-
-        if (layerVis.textAnnotations) for (const item of currentFloor.textAnnotations ?? []) {
-          if (ptInRect(item)) ids.add(item.id);
-        }
-        for (const item of [...(layerVis.measurements ? currentFloor.measurements ?? [] : []), ...(layerVis.annotations ? currentFloor.annotations ?? [] : [])]) {
-          if (ptInRect({ x: item.x1, y: item.y1 }) && ptInRect({ x: item.x2, y: item.y2 })) ids.add(item.id);
-        }
+        for (const id of marqueeSelectionIds(currentFloor, { minX, maxX, minY, maxY }, layerVis)) ids.add(id);
 
         if (ids.size > 0) {
           clearAuxiliarySelection();
@@ -3464,6 +3416,8 @@
       wallStart = null; wallSequenceFirst = null; typedWallLength = '';
       placingFurnitureId.set(null);
       placingEntourageId.set(null);
+      placingStair.set(false);
+      placingColumn.set(false);
       placingRotation.set(0);
       editingTextAnnotationId = null;
       textAnnotationMode = false;
