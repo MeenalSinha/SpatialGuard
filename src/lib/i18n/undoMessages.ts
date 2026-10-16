@@ -45,6 +45,8 @@ const keys: Extract<TranslationKey, `undoAction.${string}`>[] = [
   'undoAction.deleteAttachment',
   'undoAction.lock',
   'undoAction.unlock',
+  'undoAction.renameProject',
+  'undoAction.describeProject',
 ];
 const messages = new Map(keys.map(key => [translate('en', key), key]));
 

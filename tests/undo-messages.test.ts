@@ -33,3 +33,9 @@ it('localizes generated opening and column actions without modifying history or 
   expect(JSON.stringify(get(undoHistoryStore))).toBe(history);
   expect(JSON.stringify(get(currentProject))).toBe(project);
 });
+
+it('translates the project rename and description history entries', () => {
+  expect(undoMessage('Renamed project', 'pt')).toBe('Projeto renomeado');
+  expect(undoMessage('Changed project description', 'pt')).toBe('Descrição do projeto alterada');
+  expect(undoMessage('Renamed project', 'en')).toBe('Renamed project');
+});

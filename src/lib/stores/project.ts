@@ -3,7 +3,7 @@ import { splitWallRoomReferences } from '$lib/utils/splitWallRooms';
 import { splitWallGeometry } from '$lib/utils/splitWallGeometry';
 import { wallPathProfile } from '$lib/utils/wallProfiles';
 import { duplicatePlanSelection, pastePlanSelection } from '$lib/utils/duplicateSelection';
-import { writable, derived, get } from 'svelte/store';
+import { writable, derived, get, type Writable } from 'svelte/store';
 import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage, GuideLine, ElementGroup, EntourageItem, InterchangeState } from '$lib/models/types';
 import { planWallResize, finitePoint, validPositiveDimension, validOpeningPosition, type WallEndpoint } from '$lib/utils/wallEditing';
 import { getOuterWalls } from '$lib/utils/outerWalls';
@@ -119,6 +119,7 @@ function coalesceKeyFor(type: string, id: string, updates: Record<string, unknow
 
 // Undo grouping: batch multiple mutations into a single undo entry
 let undoGroupSnapshot: string | null = null;
+let undoGroupUpdatedAt: Project['updatedAt'] | undefined;
 let undoGroupDepth = 0;
 
 /** Begin an undo group. Nested calls are supported; only the outermost pair takes effect. */
@@ -126,6 +127,7 @@ export function beginUndoGroup() {
   if (undoGroupDepth === 0) {
     const p = get(currentProject);
     undoGroupSnapshot = p ? JSON.stringify(p) : null;
+    undoGroupUpdatedAt = p?.updatedAt;
   }
   undoGroupDepth++;
 }
@@ -135,20 +137,23 @@ export function endUndoGroup(description?: string) {
   if (undoGroupDepth <= 0) return;
   undoGroupDepth--;
   if (undoGroupDepth === 0) {
-    const before = undoGroupSnapshot;
+    const before = undoGroupSnapshot, updatedAt = undoGroupUpdatedAt;
     const action = description || _nextDescription || 'Group action';
     undoGroupSnapshot = null;
+    undoGroupUpdatedAt = undefined;
     _nextDescription = '';
     resetCoalescing();
     const project = get(currentProject);
-    if (before === null || !project || JSON.stringify(project) === before) return;
+    // Drag frames bump updatedAt; only changed content earns an entry and discards Redo.
+    if (before === null || !project || JSON.stringify({ ...project, updatedAt }) === before) return;
     pushHistory(undoStack, { state: before, description: action, timestamp: Date.now() });
     redoStack.length = 0;
     syncHistoryStore();
   }
 }
 
-function snapshot(description?: string, coalesceKey?: string) {
+/** Record the project as it is now, or `state` (its JSON before an in-place edit), as the next Undo step. */
+function snapshot(description?: string, coalesceKey?: string, state?: string) {
   // If inside an undo group, skip — the group handles the snapshot
   if (undoGroupDepth > 0) return;
   const p = get(currentProject);
@@ -166,7 +171,7 @@ function snapshot(description?: string, coalesceKey?: string) {
     redoStack.length = 0;
     return;
   }
-  pushHistory(undoStack, { state: JSON.stringify(p), description: description || _nextDescription || 'Edit', timestamp: now });
+  pushHistory(undoStack, { state: state ?? JSON.stringify(p), description: description || _nextDescription || 'Edit', timestamp: now });
   redoStack.length = 0;
   _nextDescription = '';
   _lastCoalesceKey = coalesceKey ?? null;
@@ -198,10 +203,28 @@ function clearFloorContext() {
   placingEntourageId.set(null);
 }
 
+/** Ids the restored floor no longer holds must not drive the next edit (Delete on a stale selection). */
+function pruneFloorContext(project: Project) {
+  const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
+  if (!floor) return;
+  const ids = new Set([floor.walls, floor.doors, floor.windows, floor.furniture, floor.stairs ?? [], floor.columns ?? [], floor.guides ?? [],
+    floor.measurements ?? [], floor.annotations ?? [], floor.textAnnotations ?? [], floor.entourage ?? []].flat().map(item => item.id));
+  const prune = (store: Writable<string | null>, known: Set<string>) => {
+    const id = get(store);
+    if (id !== null && !known.has(id)) store.set(null);
+  };
+  prune(selectedElementId, ids);
+  prune(elevationWallId, new Set(floor.walls.map(wall => wall.id)));
+  prune(selectedRoomId, new Set([...floor.rooms, ...get(detectedRoomsStore)].map(room => room.id)));
+  const selected = [...get(selectedElementIds)];
+  if (selected.some(id => !ids.has(id))) selectedElementIds.set(new Set(selected.filter(id => ids.has(id))));
+}
+
 function restoreHistoryProject(state: string) {
   const project = reviveDates(JSON.parse(state));
   if (get(currentProject)?.activeFloorId !== project.activeFloorId) clearFloorContext();
   currentProject.set(project);
+  pruneFloorContext(project);
 }
 
 export function undo() {
@@ -246,16 +269,20 @@ export function jumpToUndoStep(targetIndex: number) {
   syncHistoryStore();
 }
 
+/** Apply `fn` to the active floor as one Undo step. An edit that changes nothing leaves history, Redo and updatedAt alone. */
 function mutate(fn: (floor: Floor) => void, description?: string, coalesceKey?: string) {
   const p = get(currentProject);
-  if (!p) return;
-  snapshot(description, coalesceKey);
-  const floor = p.floors.find((f) => f.id === p.activeFloorId);
-  if (!floor) return;
+  const floor = p?.floors.find((f) => f.id === p.activeFloorId);
+  if (!p || !floor) return;
+  const before = JSON.stringify(p);
   fn(floor);
+  if (JSON.stringify(p) === before) return;
+  snapshot(description, coalesceKey, before);
   p.updatedAt = new Date();
   currentProject.set({ ...p });
 }
+
+const samePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 
 export function addWall(start: Point, end: Point): string {
   const id = uid();
@@ -340,7 +367,7 @@ export function moveFurniture(id: string, position: Point) {
   const floor = p.floors.find((f) => f.id === p.activeFloorId);
   if (!floor) return;
   const item = floor.furniture.find((fi) => fi.id === id);
-  if (item) {
+  if (item && !samePoint(item.position, position)) {
     item.position = position;
     p.updatedAt = new Date();
     currentProject.set({ ...p });
@@ -353,6 +380,9 @@ export function transformFurnitureDuringDrag(id: string, updates: Partial<Pick<F
   const floor = p?.floors.find(f => f.id === p.activeFloorId);
   const item = floor?.furniture.find(fi => fi.id === id);
   if (!p || !item) return;
+  const { position, rotation, scale } = updates;
+  if ((!position || samePoint(item.position, position)) && (rotation === undefined || rotation === item.rotation)
+    && (!scale || (scale.x === item.scale.x && scale.y === item.scale.y && scale.z === item.scale.z))) return;
   Object.assign(item, updates);
   p.updatedAt = new Date();
   currentProject.set({ ...p });
@@ -461,7 +491,7 @@ export function moveStair(id: string, position: Point) {
   const floor = p.floors.find((f) => f.id === p.activeFloorId);
   if (!floor || !floor.stairs) return;
   const s = floor.stairs.find((s) => s.id === id);
-  if (s) {
+  if (s && !samePoint(s.position, position)) {
     s.position = position;
     p.updatedAt = new Date();
     currentProject.set({ ...p });
@@ -512,7 +542,7 @@ export function moveColumn(id: string, position: Point) {
   const floor = p.floors.find((f) => f.id === p.activeFloorId);
   if (!floor || !floor.columns) return;
   const c = floor.columns.find((c) => c.id === id);
-  if (c) {
+  if (c && !samePoint(c.position, position)) {
     c.position = position;
     p.updatedAt = new Date();
     currentProject.set({ ...p });
@@ -544,7 +574,7 @@ export function moveEntourage(id: string, position: Point) {
   if (!p) return;
   const floor = p.floors.find((f) => f.id === p.activeFloorId);
   const item = floor?.entourage?.find((e) => e.id === id);
-  if (item) {
+  if (item && !samePoint(item.position, position)) {
     item.position = position;
     p.updatedAt = new Date();
     currentProject.set({ ...p });
@@ -557,7 +587,7 @@ export function resizeEntourage(id: string, width: number) {
   if (!p) return;
   const floor = p.floors.find((f) => f.id === p.activeFloorId);
   const item = floor?.entourage?.find((e) => e.id === id);
-  if (item) {
+  if (item && item.width !== width) {
     item.width = width;
     p.updatedAt = new Date();
     currentProject.set({ ...p });
@@ -643,7 +673,7 @@ export function moveWallEndpoint(id: string, endpoint: 'start' | 'end', position
   const floor = p.floors.find((f) => f.id === p.activeFloorId);
   if (!floor) return;
   const w = floor.walls.find((w) => w.id === id);
-  if (w) {
+  if (w && !samePoint(w[endpoint], position)) {
     // Store only x/y: the drag passes magnet-snap results carrying snappedTo* flags and the
     // same object to every joined corner, which otherwise reach saves and Download JSON.
     w[endpoint] = { x: position.x, y: position.y };
@@ -659,6 +689,8 @@ export function moveWallGeometryDuringDrag(id: string, geometry: Pick<Wall, 'sta
   const project = get(currentProject);
   const wall = project?.floors.find(floor => floor.id === project.activeFloorId)?.walls.find(wall => wall.id === id);
   if (!project || !wall) return;
+  if (samePoint(wall.start, geometry.start) && samePoint(wall.end, geometry.end)
+    && (!geometry.curvePoint || (wall.curvePoint && samePoint(wall.curvePoint, geometry.curvePoint)))) return;
   wall.start = { x: geometry.start.x, y: geometry.start.y };
   wall.end = { x: geometry.end.x, y: geometry.end.y };
   if (geometry.curvePoint) wall.curvePoint = { x: geometry.curvePoint.x, y: geometry.curvePoint.y };
@@ -938,10 +970,22 @@ export function updateFloorSlabThickness(floorId: string, thickness?: number) {
   currentProject.set({ ...p });
 }
 
+/** Every history entry restores the whole project, so a rename must be a step of its own. */
 export function updateProjectName(name: string) {
   const p = get(currentProject);
-  if (!p) return;
+  if (!p || p.name === name) return;
+  snapshot('Renamed project', 'project-name');
   p.name = name;
+  p.updatedAt = new Date();
+  currentProject.set({ ...p });
+}
+
+/** The Settings dialog edits per keystroke; rapid edits share one step. */
+export function updateProjectDescription(description: string) {
+  const p = get(currentProject);
+  if (!p || (p.description ?? '') === description) return;
+  snapshot('Changed project description', 'project-description');
+  p.description = description;
   p.updatedAt = new Date();
   currentProject.set({ ...p });
 }
@@ -1096,6 +1140,7 @@ export function duplicateFurniture(id: string): string | null {
 
 /** Move a wall parallel to itself (both endpoints shift by the same perpendicular offset) without undo snapshot (for dragging) */
 export function moveWallParallel(id: string, dx: number, dy: number) {
+  if (dx === 0 && dy === 0) return;
   const p = get(currentProject);
   if (!p) return;
   const floor = p.floors.find((f) => f.id === p.activeFloorId);
@@ -1319,7 +1364,7 @@ export function moveTextAnnotation(id: string, position: { x: number; y: number 
   const floor = p.floors.find(f => f.id === p.activeFloorId);
   if (!floor?.textAnnotations) return;
   const t = floor.textAnnotations.find(t => t.id === id);
-  if (!t) return;
+  if (!t || (t.x === position.x && t.y === position.y)) return;
   t.x = position.x;
   t.y = position.y;
   p.updatedAt = new Date();
