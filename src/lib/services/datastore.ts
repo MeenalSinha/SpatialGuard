@@ -25,10 +25,18 @@ export class ProjectConflictError extends Error {
   }
 }
 
-/** Keep in-document saves ordered; IndexedDB transactions also protect browsers without Web Locks. */
+/** Keep in-document saves ordered; IndexedDB transactions also protect browsers without Web Locks.
+ *  The lock callback never rejects: Firefox reports a lock callback that rejects at once (indexedDB.open with
+ *  site data blocked) as an uncaught error even though the request's promise is handled, so the outcome is
+ *  carried out of the lock and rethrown here. */
 async function mutateLibrary<T>(change: () => Promise<T>): Promise<T> {
   if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && navigator.locks?.request) {
-    return navigator.locks.request('openplan3d-project-library', change);
+    const outcome = await navigator.locks.request('openplan3d-project-library', async () => {
+      try { return { ok: true as const, value: await change() }; }
+      catch (error) { return { ok: false as const, error }; }
+    });
+    if (!outcome.ok) throw outcome.error;
+    return outcome.value;
   }
   // IndexedDB compare-and-write transactions remain atomic without Web Locks.
   return change();
