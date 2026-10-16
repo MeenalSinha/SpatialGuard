@@ -110,9 +110,20 @@ test('creating a project asks for persistent storage once per browser', async ({
   check();
 });
 
+/** Automation grants sticky activation on navigation; a person opening a link has none until they press something. */
+async function realActivation(page: Page) {
+  await page.addInitScript(() => {
+    if (typeof UserActivation === 'undefined') return;
+    let active = false;
+    for (const type of ['pointerdown', 'keydown']) addEventListener(type, event => { if (event.isTrusted) active = true; }, true);
+    Object.defineProperty(UserActivation.prototype, 'hasBeenActive', { configurable: true, get: () => active });
+  });
+}
+
 test('the empty plan a bare editor link saves on load does not ask; the next save does', async ({ page }) => {
   const check = observe(page);
   await storageManager(page, false);
+  await realActivation(page);
   await page.goto('/editor');
   await expect(page).toHaveURL(/\/editor\?id=/);
   await expect.poll(async () => Object.keys(await savedProjects(page)).length).toBe(1);
