@@ -175,7 +175,10 @@ export function readProjectPackage(bytes: Uint8Array): { project: Project; asset
 }
 export async function prepareProjectPackage(file: File) {
   if (file.size > PACKAGE_LIMIT) packageError('The package exceeds 64 MiB.');
-  const bytes = new Uint8Array(await file.arrayBuffer()), preview = readProjectPackage(bytes);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  // A JSON backup picked here (with the picker showing all files) opens elsewhere; a ZIP starts with "PK".
+  if (/^\s*[{[]/.test(new TextDecoder().decode(bytes.subarray(0, 64)))) packageError('This is a JSON file, not a project package. Open it with Restore library backup on the Projects page or with Import JSON in the editor.');
+  const preview = readProjectPackage(bytes);
   const restore = prepareLibraryRestore(JSON.stringify({ [preview.project.id]: JSON.stringify(preview.project) }), file.name, 'Imported copy');
   return { ...preview, restore: restore.restore, bytes };
 }

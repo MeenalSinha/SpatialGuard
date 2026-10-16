@@ -50,6 +50,20 @@ test('Import a Plan on the welcome screen hands a library backup to Restore', as
   check();
 });
 
+test('Import project package says where a JSON file opens when the picker shows all files', async ({ page }) => {
+  const check = observe(page);
+  await page.addInitScript(() => localStorage.setItem('hasSeenWelcome', 'true'));
+  await page.goto('/');
+  await expect(page.getByText('No projects yet', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Import project package', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Import project package', exact: true });
+  await choose(page, () => dialog.getByRole('button', { name: 'Choose project package', exact: true }).click(),
+    { name: 'Our house - shell.json', mimeType: 'application/json', buffer: await projectFile() }, '.zip,application/zip');
+  await expect(dialog.getByRole('alert')).toHaveText('Invalid project package: This is a JSON file, not a project package. Open it with Restore library backup on the Projects page or with Import JSON in the editor.');
+  expect(await savedProjects(page)).toEqual({});
+  check();
+});
+
 for (const kind of kinds) {
   test(`Restore library backup adds a Download JSON file reported as “${kind.mimeType || 'no type'}”`, async ({ page }) => {
     const check = observe(page);

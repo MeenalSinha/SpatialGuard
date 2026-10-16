@@ -1224,6 +1224,7 @@ export const pt = {
   "projectService.packageJSONObject": "Era esperado um objeto JSON.",
   "projectService.packageFileDamaged": "O arquivo {name} está danificado.",
   "projectService.packageManifest": "Manifesto incompatível. Escolha um pacote de projeto do OpenPlan3D, e não um conjunto de dados de captura ou backup da biblioteca.",
+  "projectService.packageJSONFile": "Este é um arquivo JSON, não um pacote de projeto. Abra-o com Restaurar backup da biblioteca na página Projetos ou com Importar JSON no editor.",
   "projectService.packageOversized": "O pacote excede 64 MiB.",
   "projectService.packageImages": "As imagens do projeto devem estar incorporadas em formato raster. Baixe um backup JSON para preservar as referências a imagens externas.",
   "projectService.packageTracingImageFormat": "A imagem de referência do andar “{floor}” está em {format}, e não em PNG, JPEG ou GIF incorporado. Substitua-a ou baixe um backup JSON para preservá-la.",

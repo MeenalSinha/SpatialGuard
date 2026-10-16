@@ -1224,6 +1224,7 @@ export const en = {
   "projectService.packageJSONObject": "Expected a JSON object.",
   "projectService.packageFileDamaged": "The file {name} is damaged.",
   "projectService.packageManifest": "Unsupported manifest. Choose an OpenPlan3D project package, not a capture dataset or library backup.",
+  "projectService.packageJSONFile": "This is a JSON file, not a project package. Open it with Restore library backup on the Projects page or with Import JSON in the editor.",
   "projectService.packageOversized": "The package exceeds 64 MiB.",
   "projectService.packageImages": "Project images must be embedded raster images. Download a JSON backup to preserve external image references.",
   "projectService.packageTracingImageFormat": "The tracing image on floor “{floor}” is {format}, not an embedded PNG, JPEG or GIF image. Replace it or download a JSON backup to preserve it.",

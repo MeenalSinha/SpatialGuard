@@ -7,6 +7,7 @@ import { isLibraryBackup, LibraryBackupFileError, prepareLibraryRestore } from '
 import { libraryBackup } from '$lib/services/localDatabase';
 import { createLocalStore, localStore } from '$lib/services/datastore';
 import { openProject } from '$lib/services/projectOpening';
+import { prepareProjectPackage } from '$lib/services/projectPackage';
 import { currentProject, loadProject } from '$lib/stores/project';
 import { initAutoSave, markClean, saveState } from '$lib/stores/saveStatus';
 import { isRoomPlanJson } from '$lib/utils/roomplanValidation';
@@ -137,5 +138,19 @@ describe('Import JSON and Import a Plan', () => {
   it('explains where a library backup goes if no restore can open here', () => {
     const message = `${new LibraryBackupFileError().message} No project was imported.`;
     expect(projectServiceMessage(message, 'pt')).toBe('Este arquivo é um backup da biblioteca. Use Restaurar backup da biblioteca na página Projetos para adicionar os projetos dele. Nenhum projeto foi importado.');
+  });
+});
+
+describe('Import project package', () => {
+  it.each([
+    ['a project saved with Download JSON', projectFile],
+    ['a library backup', libraryFile],
+    ['a project file saved again by a text editor with a byte order mark', `﻿${projectFile}`],
+  ])('says where %s opens instead of “Unsupported ZIP layout”', async (_kind, raw) => {
+    let message = '';
+    try { await prepareProjectPackage(new File([raw], 'Our house - shell.json', { type: 'application/json' })); }
+    catch (error) { message = (error as Error).message; }
+    expect(message).toBe('Invalid project package: This is a JSON file, not a project package. Open it with Restore library backup on the Projects page or with Import JSON in the editor.');
+    expect(projectServiceMessage(message, 'pt')).toBe('Pacote de projeto inválido: Este é um arquivo JSON, não um pacote de projeto. Abra-o com Restaurar backup da biblioteca na página Projetos ou com Importar JSON no editor.');
   });
 });

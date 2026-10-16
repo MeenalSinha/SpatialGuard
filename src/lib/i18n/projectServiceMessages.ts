@@ -56,7 +56,7 @@ const packageKeys: ServiceKey[] = [
   'projectService.packageTooMany', 'projectService.packageLimit',
   'projectService.packageJSONSize', 'projectService.packageJSONUnreadable',
   'projectService.packageJSONDepth', 'projectService.packageJSONDuplicate',
-  'projectService.packageJSONObject', 'projectService.packageManifest',
+  'projectService.packageJSONObject', 'projectService.packageManifest', 'projectService.packageJSONFile',
 ];
 const packageMessages = new Map(packageKeys.map(key => [translate('en', key), key]));
 
