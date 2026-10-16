@@ -1341,55 +1341,18 @@
           wallGroup.add(mesh);
         }
 
-        // Baseboard — with gaps at door openings
+        // Baseboard — the wall's own opening cuts at baseboard height, as on curved
+        // walls: doors and windows whose sill is below the board cut it too.
         if (Math.min(startH, endH) >= BASEBOARD_HEIGHT) {
-        const doorOpeningsForBB = floor.doors.filter((d) => d.wallId === wall.id);
-        if (doorOpeningsForBB.length === 0) {
-          const bbGeo = new THREE.BoxGeometry(len, BASEBOARD_HEIGHT, t + 2);
-          const bbMesh = new THREE.Mesh(bbGeo, baseboardMat);
-          bbMesh.position.set(cx, BASEBOARD_HEIGHT / 2, cy);
-          bbMesh.rotation.y = -angle;
-          bbMesh.castShadow = true;
-          wallGroup.add(bbMesh);
-        } else {
-          // Build baseboard segments skipping door gaps
-          const sortedDoors = [...doorOpeningsForBB].sort((a, b) => a.position - b.position);
-          let bbCursor = 0;
-          for (const door of sortedDoors) {
-            const dLeft = door.position * len - door.width / 2;
-            const dRight = door.position * len + door.width / 2;
-            if (dLeft > bbCursor) {
-              const segLen = dLeft - bbCursor;
-              const segCenter = bbCursor + segLen / 2 - len / 2;
-              const bbGeo = new THREE.BoxGeometry(segLen, BASEBOARD_HEIGHT, t + 2);
-              const bbMesh = new THREE.Mesh(bbGeo, baseboardMat);
-              bbMesh.position.set(
-                cx + segCenter * Math.cos(angle),
-                BASEBOARD_HEIGHT / 2,
-                cy + segCenter * Math.sin(angle)
-              );
-              bbMesh.rotation.y = -angle;
-              bbMesh.castShadow = true;
-              wallGroup.add(bbMesh);
-            }
-            bbCursor = Math.max(bbCursor, dRight);
-          }
-          if (bbCursor < len) {
-            const segLen = len - bbCursor;
-            const segCenter = bbCursor + segLen / 2 - len / 2;
-            const bbGeo = new THREE.BoxGeometry(segLen, BASEBOARD_HEIGHT, t + 2);
-            const bbMesh = new THREE.Mesh(bbGeo, baseboardMat);
-            bbMesh.position.set(
-              cx + segCenter * Math.cos(angle),
-              BASEBOARD_HEIGHT / 2,
-              cy + segCenter * Math.sin(angle)
-            );
+          for (const seg of buildWallSegments(len, BASEBOARD_HEIGHT, BASEBOARD_HEIGHT, doorOpenings, winOpenings)) {
+            const bbMesh = new THREE.Mesh(createSlopedBoxGeometry(seg.width, t + 2, seg.bottomY, seg.topYLeft, seg.topYRight), baseboardMat);
+            const localX = seg.offsetX - len / 2;
+            bbMesh.position.set(cx + localX * Math.cos(angle), 0, cy + localX * Math.sin(angle));
             bbMesh.rotation.y = -angle;
             bbMesh.castShadow = true;
             wallGroup.add(bbMesh);
           }
         }
-      }
     }
 
     // Doors
