@@ -1,5 +1,5 @@
 import { expect, it, vi } from 'vitest';
-import { reconcileNativeClose } from '$lib/utils/modalDialog';
+import { popupOwnsEscape, reconcileNativeClose } from '$lib/utils/modalDialog';
 
 function closed(state: { isConnected: boolean; open: boolean }) {
   const dialog = { ...state, showModal: vi.fn() };
@@ -28,4 +28,21 @@ it('ignores the close that unmounting fires and a dialog that is open again', ()
     expect(dialog.showModal).not.toHaveBeenCalled();
     expect(onclose).not.toHaveBeenCalled();
   }
+});
+
+it('leaves Escape to an open menu wherever focus is, and to a panel only from inside it', () => {
+  let menuOpen = false;
+  vi.stubGlobal('document', { querySelector: (selector: string) => selector === '[data-popup="menu"]' && menuOpen ? {} : null });
+  const inPanel = { closest: (selector: string) => selector === '[data-popup]' ? {} : null } as unknown as EventTarget;
+  const outside = { closest: () => null } as unknown as EventTarget;
+  expect(popupOwnsEscape(outside)).toBe(false);
+  expect(popupOwnsEscape(null)).toBe(false);
+  expect(popupOwnsEscape(inPanel)).toBe(true);
+  menuOpen = true;
+  expect(popupOwnsEscape(outside)).toBe(true);
+  expect(popupOwnsEscape(null)).toBe(true);
+});
+
+it('never claims Escape without a document', () => {
+  expect(popupOwnsEscape({ closest: () => ({}) } as unknown as EventTarget)).toBe(false);
 });

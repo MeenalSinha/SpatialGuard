@@ -55,3 +55,12 @@ export function reconcileNativeClose(event: Event, keep: boolean, onclose?: () =
 export function hasOpenModal(): boolean {
   return typeof document !== 'undefined' && document.querySelector('dialog[open]') !== null;
 }
+
+/** Non-modal popups close themselves on Escape, so editor-wide Escape handlers that run
+ * first (window capture) leave the key to them: a menu marked `data-popup="menu"` closes
+ * on any Escape while open, any other `data-popup` element when the key comes from inside it. */
+export function popupOwnsEscape(target: EventTarget | null): boolean {
+  if (typeof document === 'undefined') return false;
+  if (document.querySelector('[data-popup="menu"]') !== null) return true;
+  return !!(target as Element | null)?.closest?.('[data-popup]');
+}

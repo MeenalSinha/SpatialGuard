@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t } from '$lib/i18n';
   import { onDestroy } from 'svelte';
-  import { hasOpenModal } from '$lib/utils/modalDialog';
+  import { hasOpenModal, popupOwnsEscape } from '$lib/utils/modalDialog';
   import { isEditingField } from '$lib/utils/shortcuts';
   /**
    * ElevationView — integrated face-on view + editor for a single wall.
@@ -145,13 +145,22 @@
         endDrag();
       }
       if (e.key === 'Escape') {
+        // A focused field or an open menu or panel takes Escape first (see keepFromPlan).
+        if (isEditingField(e.target) || popupOwnsEscape(e.target)) return;
         e.preventDefault();
         e.stopImmediatePropagation();
         backToPlan();
       }
     };
+    // Escape left to a field, menu or panel still stops short of the plan canvas:
+    // document bubbling runs before its window-level handler.
+    const keepFromPlan = (e: KeyboardEvent) => { if (e.key === 'Escape' && !hasOpenModal()) e.stopPropagation(); };
     window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    document.addEventListener('keydown', keepFromPlan);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('keydown', keepFromPlan);
+    };
   });
 
   // ── Canvas + geometry ─────────────────────────────────────────────
