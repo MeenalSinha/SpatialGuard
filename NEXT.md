@@ -6,7 +6,7 @@ file as the detailed backlog and evidence history.
 
 ## Eighteen more hunt defects, a review round and issue #101 — October 16
 
-Branch `fix/editor-defects-3` (PR #112, stacked on #110). The 21 lower-ranked
+Branch `fix/editor-defects-3` (PR #112, stacked on #110). **Merged and deployed October 16**, with #107–#110: all five App Hosting rollouts succeeded, and the live handoff preflight returns 204 for the sibling origins. The 21 lower-ranked
 findings left over from the October 15 hunt were re-checked by two verifiers
 each (one reproducing, one refuting): 17 confirmed outright, the elevation
 Escape defect by one verifier plus a reading of the code, the interchange
