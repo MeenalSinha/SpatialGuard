@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import type { Project } from '$lib/models/types';
 import { currentProject, loadProject } from '$lib/stores/project';
-import { autoSave, saveError, saveState } from '$lib/stores/saveStatus';
+import { autoSave, markClean, saveError, saveState } from '$lib/stores/saveStatus';
 import { readProject } from '$lib/utils/projectValidation';
 import { localStore } from './datastore';
 import { prepareToLeave } from './deployment';
@@ -55,6 +55,29 @@ export async function openProject(
     return !signal?.aborted && request === latestRequest && get(currentProject)?.id === candidate.id ? candidate : null;
   } catch (error) {
     if (signal?.aborted || request !== latestRequest) return null;
+    throw error;
+  }
+}
+
+/** Open a project the library already holds (an imported package copy), after saving the current plan. */
+export async function openStoredProject(id: string, signal?: AbortSignal): Promise<Project | null> {
+  const request = ++latestRequest;
+  const superseded = () => signal?.aborted || request !== latestRequest;
+  try {
+    const project = await localStore.load(id);
+    if (superseded()) return null;
+    if (!project) throw new Error('This project is no longer in your library.');
+    if (!await prepareToLeave()) {
+      if (superseded()) return null;
+      throw new Error(`Your current plan could not be saved. ${get(saveError) ?? 'Retry saving or download a JSON backup before opening another plan.'}`);
+    }
+    if (superseded()) return null;
+    if (get(saveState) !== 'saved') throw new Error('Your plan changed while preparing to open another one. Try again so the latest edits can be saved first.');
+    loadProject(project);
+    markClean();
+    return project;
+  } catch (error) {
+    if (superseded()) return null;
     throw error;
   }
 }

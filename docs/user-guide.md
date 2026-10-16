@@ -527,14 +527,15 @@ The **Export** button in the top bar opens:
 | **Export 3D as PNG** | `<project>-3d.png` | The 3D view of the active floor (the editor switches to 3D, renders, downloads, and returns to 2D) |
 | **Export as SVG** | `<project>.svg` | Vector drawing of the active floor; 1 unit = 1 cm; opens in Inkscape, Illustrator, browsers |
 | **Export as DXF** | `<project>.dxf` | CAD drawing of the active floor in centimetres with layers WALLS, DOORS, WINDOWS, FURNITURE, DIMENSIONS, ROOMS, STAIRS, COLUMNS |
-| **Export as DWG** | `<project>.dxf` | There is no DWG writer. The editor shows "DWG is a proprietary binary format. Exporting as DXF instead — all major CAD tools (AutoCAD, SketchUp, FreeCAD) can open DXF files directly." and downloads the DXF |
-| **Export as PDF** | `<project>.pdf` | A4 landscape sheet of the active floor with a title block, **Room Schedule** pages and, if the 3D view is open, a **3D Perspective View** page |
+| **Export as DWG** | `<project>.dxf` | There is no DWG writer. The editor downloads the DXF and shows the notice "DWG saved as DXF — DWG is a proprietary format, so a DXF file was downloaded instead. AutoCAD, SketchUp and FreeCAD open DXF directly." |
+| **Export as PDF** | `<project>.pdf` | A4 landscape sheet of the active floor with a title block, **Room Schedule** pages and, if the 3D view is open, a **3D Perspective View** page; the sheet's labels follow the interface language |
 | **Download JSON** | `<project>.openplan.json` | The complete project: all floors, rooms, furniture, notes, settings stored in the project, background images and custom models. This is the file to keep as a backup and to reopen with **Import JSON** |
 | **Download project package** | `openplan3d-project.zip` | "For iPhone and web. Includes retained original data and attachments, even when they are not shown here." See below |
 | **Share with Assistant…** | nothing downloaded | Uploads a copy for seven days and gives you a code and secret (section 14) |
 | **Other planners** → **Open in OpenLandscape3D**, **Open in OpenKitchen3D**, **Open in OpenCatio3D** | nothing downloaded; a new tab | Opens that planner with the whole plan in the link (see "Opening a plan in another planner" below) |
 | **Download interchange JSON** | `<Project-Name>-openplan3d.json` | "For OpenKitchen3D, OpenLandscape3D, OpenCatio3D and the iPhone app. Opening another planner puts the whole plan in the link; nothing is uploaded." Walls, doors, windows, furniture and room labels in metres, plus anything one of those planners stored in the file |
 | **Import JSON** | — | Opens a `.json` or RoomPlan `.zip` as a new project (section 12) |
+| **Import project package** | — | Opens the same **Import project package** dialog as the library page (section 12); after **Import as copy** the editor switches to the imported copy |
 | **New Project** | — | Saves the current plan and opens an empty one |
 
 `<project>` is the project name; an unnamed project exports as `floorplan`.
@@ -565,9 +566,11 @@ furniture are still exported.
 ### Export as PDF
 
 **Export as PDF** is the presentation sheet: A4 landscape, a double border, a
-title block with the project name, floor name, description, date, units and
-"openplan3d.com", then **Room Schedule** pages (#, Room Name, Type, Area, Floor
-Texture) and a **3D Perspective View** page captured from the 3D view. The 3D
+title block with the project name, floor name, description, date, units,
+"openplan3d.com" and "Created with OpenPlan3D", then **Room Schedule** pages
+(#, Room Name, Type, Area, Floor Texture) and a **3D Perspective View** page
+captured from the 3D view. These labels and the date follow the interface
+language (Portuguese: "Tabela de ambientes", "Vista 3D em perspectiva"). The 3D
 page is only possible while the 3D view is open: switch to **3D**, wait for
 it to render, then choose **Export → Export as PDF**. Exporting from 2D gives
 "PDF exported without the 3D view — The floor plan was exported. Reopen the 3D
@@ -590,8 +593,9 @@ view and try again to include it." It is not printed to a fixed scale; use
 - **Download project package** — one project as a ZIP for exchange with the
   OpenPlan3D iPhone app or another browser. It carries the plan, photos,
   custom models and any original iPhone data that was retained from an import,
-  even when the web editor does not display it. Import it from the library
-  page with **Import project package**. The format is described in
+  even when the web editor does not display it. Import it with **Import
+  project package** on the library page or in the editor's Export menu. The
+  format is described in
   [project-package-v1.md](project-package-v1.md).
 - **Download library backup** — every project in this browser plus version
   history and previews, restored with **Restore library backup**.
@@ -773,7 +777,7 @@ other planner knows and this editor cannot show (cabinet runs, plants,
 structures) stays attached to the project and is written back by **Download
 interchange JSON** and the **Open in …** items.
 
-### Import project package (library page)
+### Import project package (library page or Export menu)
 
 On the library page (or the Welcome screen) choose **Import project package**
 ("Bring an edited plan and its attachments from iPhone or another browser.
@@ -784,6 +788,11 @@ Item details." **Import as copy** adds it to the library; "Import creates an
 independent copy. Existing projects and work in other tabs stay available."
 Packages must be under 64 MiB.
 
+In the editor, **Export → Import project package** opens the same dialog. After
+**Import as copy** the plan you were editing is saved and the editor switches
+to the imported copy; if it cannot be opened here, the copy is still in the
+library and the reason is shown after you close the dialog.
+
 ### Tracing an image
 
 To draw over an existing plan or sketch:
@@ -791,8 +800,8 @@ To draw over an existing plan or sketch:
 1. **Build → Import Image** ("Floor plan background") and choose an image, or
    copy an image and press **Ctrl+V** with the canvas focused (paste only
    places an image when nothing from the plan is on the internal clipboard).
-   Images over 5 MB show "Warning: Image is larger than 5MB. This may slow
-   down the application."
+   Images over 5 MB still import and show the note "Large image imported. The
+   image is larger than 5 MB and may slow down the editor." under the button.
 2. The image appears on the current floor at reduced opacity. Click it to open
    **Background Image** in Properties: **Opacity**, **Scale**, **Rotation**,
    **Set Scale** and **Remove Image**.
@@ -871,6 +880,7 @@ Press **?** in the editor to see this list on screen (**Copy All** copies it;
 | **S** | Toggle snap (status bar Snap) |
 | **G** | Toggle grid |
 | **F** / **Shift+F** | Zoom to fit / Fit selection |
+| **+** / **−** (also **=** / **_** and the numpad keys) | Zoom in / out, 25% steps between the minimum zoom and 1000% |
 | **L** | Toggle Layers panel |
 | **Tab** | Toggle 2D / 3D |
 | **?** | Show shortcuts |
@@ -900,8 +910,8 @@ Press **?** in the editor to see this list on screen (**Copy All** copies it;
 | **WASD / arrows / mouse / Shift / Esc** (walkthrough) | Look / move / look / sprint / exit |
 
 Shortcuts are ignored while you type in a text field, and most are disabled
-while a dialog is open. The on-screen list also shows "+ / −" for zoom; use the
-zoom buttons or the mouse wheel if those keys do nothing in your browser.
+while a dialog is open. **Ctrl** / **Cmd** with **+** / **−** is left to the
+browser, so page zoom keeps working.
 
 ## 16. Troubleshooting
 

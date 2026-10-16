@@ -5,7 +5,8 @@
   import { modalDialog } from '$lib/utils/modalDialog';
   import { prepareProjectPackage } from '$lib/services/projectPackage';
   import { storageErrorMessage } from '$lib/services/datastore';
-  let { onclose, onimported }: { onclose: () => void; onimported: () => Promise<void> } = $props();
+  /** `onimported` receives the library ID of the imported copy, so the editor can open it. */
+  let { onclose, onimported }: { onclose: () => void; onimported: (id: string) => Promise<void> } = $props();
   let input = $state<HTMLInputElement>();
   let preview = $state.raw<Awaited<ReturnType<typeof prepareProjectPackage>> | null>(null);
   let error = $state<string | null>(null), reading = $state(false), importing = $state(false), complete = $state(false);
@@ -28,11 +29,11 @@
     if (!preview || importing || complete) return;
     importing = true; error = null;
     try {
-      await preview.restore(lifetime.signal);
+      const { projects } = await preview.restore(lifetime.signal);
       if (lifetime.signal.aborted) return;
       complete = true;
       try { localStorage.setItem('hasSeenWelcome', 'true'); } catch {}
-      await onimported();
+      await onimported(projects[0].id);
     } catch (reason) {
       if (!lifetime.signal.aborted) error = complete ? $t('package.refreshFailed') : `${storageErrorMessage(reason)} ${$t('package.retry')}`;
     } finally { importing = false; }

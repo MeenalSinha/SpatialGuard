@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { exportAsSVG, exportAsPNG, exportPDF } from '$lib/utils/export';
-import { exportDXF } from '$lib/utils/cadExport';
+import { exportDXF, exportDWG } from '$lib/utils/cadExport';
 import { resolveRooms } from '$lib/utils/roomDetection';
 import { benchmarkProject } from './fixtures/render-benchmark';
 import { rectangleWalls, roomProject } from './fixtures/project';
@@ -84,6 +84,38 @@ it('writes the saved room name into a real DXF download', async () => {
   const dxf = await downloaded[0].text();
   expect(dxf).toContain('Kitchen & Dining <East>');
   expect(dxf).not.toContain('Room 1');
+});
+
+it('exports DWG as a DXF download and reports whether anything was written', async () => {
+  // No window.alert exists in this environment, so a blocking dialog would throw here.
+  expect(exportDWG(namedProject())).toBe(true);
+  expect(downloaded).toHaveLength(1);
+  expect(downloaded[0].type).toBe('application/dxf');
+  expect(await downloaded[0].text()).toContain('Kitchen & Dining <East>');
+  const empty = namedProject(); empty.floors[0].walls = [];
+  expect(exportDWG(empty)).toBe(false);
+  expect(downloaded).toHaveLength(1);
+});
+
+it('localizes the PDF title block, schedule and summary labels and names OpenPlan3D', async () => {
+  await exportPDF(namedProject());
+  let text = pdfText.mock.calls.map(call => String(call[0]));
+  expect(text).toContain('Created with OpenPlan3D');
+  expect(text).toContain('Room Schedule');
+  expect(text).toContain('Units: m, cm');
+  expect(text.some(value => /^Date: /.test(value))).toBe(true);
+  expect(text.some(value => /^1 rooms  ·  4 walls  ·  0 doors/.test(value))).toBe(true);
+  expect(text.some(value => value.includes('Open 3D'))).toBe(false);
+  pdfText.mockClear();
+  await exportPDF(namedProject(), 'pt');
+  text = pdfText.mock.calls.map(call => String(call[0]));
+  expect(text).toContain('Criado com OpenPlan3D');
+  expect(text).toContain('Tabela de ambientes');
+  expect(text).toContain('Revestimento do piso');
+  expect(text).toContain('Unidades: m, cm');
+  expect(text.some(value => /^Data: /.test(value))).toBe(true);
+  expect(text.some(value => /^1 ambientes  ·  4 paredes/.test(value))).toBe(true);
+  expect(text).not.toContain('Room Schedule');
 });
 
 it('uses the saved name when drawing the PNG export', async () => {

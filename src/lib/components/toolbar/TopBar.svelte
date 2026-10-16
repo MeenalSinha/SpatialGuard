@@ -8,9 +8,10 @@
   import { SIBLING_PLANNERS, type SiblingPlannerId } from '$lib/utils/transferLink';
   import { interchangeProjectName } from '$lib/utils/interchange';
   import { modalDialog, hasOpenModal } from '$lib/utils/modalDialog';
-  import { openProject } from '$lib/services/projectOpening';
+  import { openProject, openStoredProject } from '$lib/services/projectOpening';
   import { saveConflict, savingCopy, saveCurrentAsCopy } from '$lib/stores/saveStatus';
   import ImportError from '$lib/components/ImportError.svelte';
+  import ProjectPackageDialog from '$lib/components/ProjectPackageDialog.svelte';
   import AssistantShareDialog from '$lib/components/AssistantShareDialog.svelte';
   import { onMount, onDestroy } from 'svelte';
   import { base } from '$app/paths';
@@ -33,6 +34,7 @@
 
   let importError = $state<string | null>(null);
   let packageError = $state<string | null>(null);
+  let packageOpen = $state(false);
   let assistantShareProject = $state<import('$lib/models/types').Project | null>(null);
 
   let settingsOpen = $state(false);
@@ -220,13 +222,14 @@
 
   function onExportDWG() {
     const p = get(currentProject);
-    if (p) exportDWG(p, get(locale));
-    exportOpen = false;
+    exportOpen = false; exportNotice.set(null);
+    // There is no DWG writer: the DXF downloads and the notice says so instead of a blocking alert.
+    if (p && exportDWG(p, get(locale))) exportNotice.set({ title: 'exportNotice.dwgTitle', message: 'exportNotice.dwgFallback' });
   }
 
   function onExportPDF() {
     const p = get(currentProject);
-    if (p) exportPDF(p);
+    if (p) exportPDF(p, get(locale));
     exportOpen = false;
   }
 
@@ -316,6 +319,20 @@
     };
     input.click();
     exportOpen = false;
+  }
+
+  function onImportPackage() {
+    exportOpen = false; importError = null; packageOpen = true;
+  }
+
+  /** The imported copy is already in the library; switch the editor to it (the current plan is saved first). */
+  async function openImportedPackage(id: string) {
+    try {
+      if (await openStoredProject(id, openingLifetime.signal)) packageOpen = false;
+    } catch (error) {
+      // The dialog stays on its "imported" message (the copy is in the library); this explains why it did not open here.
+      importError = error instanceof Error ? error.message : 'Could not open the imported project.';
+    }
   }
 </script>
 
@@ -630,6 +647,10 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           {$t('exportMenu.import')}
         </button>
+        <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2" onclick={onImportPackage}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          {$t('exportMenu.importPackage')}
+        </button>
         <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left flex items-center gap-2" onclick={newProject}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           {$t('library.new')}
@@ -691,6 +712,7 @@
   <ImportError title={$t('projectToolbar.openError')} message={importError} onDismiss={() => importError = null} />
 {/if}
 {#if packageError}<ImportError title={$t('projectToolbar.packageError')} message={packageError} onDismiss={() => packageError = null} />{/if}
+{#if packageOpen}<ProjectPackageDialog onclose={() => packageOpen = false} onimported={openImportedPackage} />{/if}
 {#if assistantShareProject}<AssistantShareDialog project={assistantShareProject} onclose={() => assistantShareProject = null} />{/if}
 
 <ExportNotice />

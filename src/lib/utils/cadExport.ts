@@ -39,9 +39,10 @@ const LAYER_COLORS = {
   ROOMS: 4,       // cyan
 };
 
-export function exportDXF(project: Project, language: Locale = 'en') {
+/** Returns whether a file was downloaded (an empty floor exports nothing). */
+export function exportDXF(project: Project, language: Locale = 'en'): boolean {
   const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
-  if (!floor || !hasPlanExportContent(floor) && !(floor.entourage ?? []).some(e=>getEntourageDef(e.defId) && e.opacity!==0)) return;
+  if (!floor || !hasPlanExportContent(floor) && !(floor.entourage ?? []).some(e=>getEntourageDef(e.defId) && e.opacity!==0)) return false;
 
   const d = new Drawing();
   d.setUnits('Centimeters');
@@ -253,14 +254,14 @@ export function exportDXF(project: Project, language: Locale = 'en') {
   const dxfString = d.toDxfString();
   const blob = new Blob([dxfString], { type: 'application/dxf' });
   download(blob, `${project.name || 'floorplan'}.dxf`);
+  return true;
 }
 
-export function exportDWG(project: Project, language: Locale = 'en') {
-  // DWG is a proprietary binary format. No good JS library exists.
-  // Export as DXF — virtually all CAD software (AutoCAD, SketchUp, etc.) opens DXF natively.
-  const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
-  if (!floor || !hasPlanExportContent(floor) && !(floor.entourage ?? []).some(e=>getEntourageDef(e.defId) && e.opacity!==0)) return;
-
-  alert('DWG is a proprietary binary format. Exporting as DXF instead — all major CAD tools (AutoCAD, SketchUp, FreeCAD) can open DXF files directly.');
-  exportDXF(project, language);
+/**
+ * DWG is a proprietary binary format with no JS writer, so the DXF (which AutoCAD,
+ * SketchUp and FreeCAD open directly) is downloaded instead. Returns whether a file
+ * was downloaded; the caller tells the user about the substitution.
+ */
+export function exportDWG(project: Project, language: Locale = 'en'): boolean {
+  return exportDXF(project, language);
 }

@@ -260,7 +260,9 @@ function mutate(fn: (floor: Floor) => void, description?: string, coalesceKey?: 
 export function addWall(start: Point, end: Point): string {
   const id = uid();
   mutate((f) => {
-    f.walls.push({ id, start, end, thickness: 15, height: 280, startHeight: 280, endHeight: 280, color: '#444444' });
+    // Copy the coordinates: the canvas passes magnet-snap results (with snappedTo* flags) and
+    // reuses one point for the next wall's start; the model keeps plain, independent points.
+    f.walls.push({ id, start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y }, thickness: 15, height: 280, startHeight: 280, endHeight: 280, color: '#444444' });
   }, 'Added wall');
   if (typeof window !== 'undefined') {
     import('$lib/stores/onboarding.svelte').then(m => m.triggerTip('first-wall', end.x > 400 ? 300 : end.x + 20, 120)).catch(() => {});
@@ -635,13 +637,16 @@ export function removeElement(id: string) {
 
 /** Move a wall endpoint without creating an undo snapshot (for dragging) */
 export function moveWallEndpoint(id: string, endpoint: 'start' | 'end', position: Point) {
+  if (!finitePoint(position)) return;
   const p = get(currentProject);
   if (!p) return;
   const floor = p.floors.find((f) => f.id === p.activeFloorId);
   if (!floor) return;
   const w = floor.walls.find((w) => w.id === id);
   if (w) {
-    w[endpoint] = position;
+    // Store only x/y: the drag passes magnet-snap results carrying snappedTo* flags and the
+    // same object to every joined corner, which otherwise reach saves and Download JSON.
+    w[endpoint] = { x: position.x, y: position.y };
     p.updatedAt = new Date();
     currentProject.set({ ...p });
   }
@@ -654,9 +659,9 @@ export function moveWallGeometryDuringDrag(id: string, geometry: Pick<Wall, 'sta
   const project = get(currentProject);
   const wall = project?.floors.find(floor => floor.id === project.activeFloorId)?.walls.find(wall => wall.id === id);
   if (!project || !wall) return;
-  wall.start = { ...geometry.start };
-  wall.end = { ...geometry.end };
-  if (geometry.curvePoint) wall.curvePoint = { ...geometry.curvePoint };
+  wall.start = { x: geometry.start.x, y: geometry.start.y };
+  wall.end = { x: geometry.end.x, y: geometry.end.y };
+  if (geometry.curvePoint) wall.curvePoint = { x: geometry.curvePoint.x, y: geometry.curvePoint.y };
   project.updatedAt = new Date();
   currentProject.set({ ...project });
 }

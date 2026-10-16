@@ -28,6 +28,7 @@
   onDestroy(() => openingLifetime.abort());
 
   let importError = $state<string | null>(null);
+  let largeImageWarning = $state(false);
 
   // AreaSummaryPanel moved to top bar dialog
   let activeTab = $state<'draw' | 'rooms' | 'objects'>('draw');
@@ -225,9 +226,8 @@
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return;
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Warning: Image is larger than 5MB. This may slow down the application.');
-      }
+      // A large image still imports; the note under the button replaces the old blocking alert.
+      largeImageWarning = file.size > 5 * 1024 * 1024;
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result as string;
@@ -513,6 +513,12 @@
             <div class="text-xs text-gray-400">{$t('buildTools.imageHelp')}</div>
           </div>
         </button>
+        {#if largeImageWarning}
+          <div role="status" class="mb-1 flex items-start justify-between gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p><span class="font-semibold">{$t('buildTools.largeImageTitle')}</span> {$t('buildTools.largeImage')}</p>
+            <button aria-label={$t('buildTools.largeImageDismiss')} class="rounded px-1 hover:bg-amber-100" onclick={() => largeImageWarning = false}>✕</button>
+          </div>
+        {/if}
         <button
           class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors hover:bg-gray-50 text-gray-700"
           onclick={onImportRoomPlan}
