@@ -47,7 +47,6 @@
   let editingName = $state(false);
   let exportOpen = $state(false);
   import { triggerTip } from '$lib/stores/onboarding.svelte';
-  let snapOn = $state(true);
   let exportRef: HTMLDivElement;
   // Mobile (< md) overflow menu for secondary actions
   let moreOpen = $state(false);
@@ -412,12 +411,13 @@
 
   <div class="h-5 w-px bg-white/20 max-xl:hidden"></div>
 
-  <!-- Snap to grid toggle -->
+  <!-- Snap to grid toggle: drawn from the store, which the Command Palette also toggles -->
   <button
-    onclick={() => { snapEnabled.update(v => !v); snapOn = !snapOn; }}
-    class="p-1.5 rounded transition-colors max-xl:hidden {snapOn ? 'text-white bg-white/20' : 'text-white/40 hover:text-white/70 hover:bg-white/10'}"
-    title={`${$t('toolbarView.snap')} (${snapOn ? $t('toolbarView.on') : $t('toolbarView.off')})`}
+    onclick={() => snapEnabled.update(v => !v)}
+    class="p-1.5 rounded transition-colors max-xl:hidden {$snapEnabled ? 'text-white bg-white/20' : 'text-white/40 hover:text-white/70 hover:bg-white/10'}"
+    title={`${$t('toolbarView.snap')} (${$snapEnabled ? $t('toolbarView.on') : $t('toolbarView.off')})`}
     aria-label={$t('toolbarView.snap')}
+    aria-pressed={$snapEnabled}
   >
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
@@ -562,7 +562,7 @@
           <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => canvasZoom.update(z => Math.max($canvasMinimumZoom, z / 1.25))}>{$t('toolbarView.zoomOut')}</button>
           <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => canvasZoom.set(1)}>{$t('toolbarView.resetZoom')} ({$canvasZoom < 0.01 ? ($canvasZoom * 100).toPrecision(2) : Math.round($canvasZoom * 100)}%)</button>
           <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => panMode.update(v => !v)}>{$panMode ? '✓ ' : ''}{$t('toolbarView.pan')}</button>
-          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => { snapEnabled.update(v => !v); snapOn = !snapOn; }}>{snapOn ? '✓ ' : ''}{$t('toolbarView.snap')}</button>
+          <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" aria-pressed={$snapEnabled} onclick={() => snapEnabled.update(v => !v)}>{$snapEnabled ? '✓ ' : ''}{$t('toolbarView.snap')}</button>
           <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" onclick={() => layerVisibility.update(v => ({ ...v, furniture: !v.furniture }))}>{$showFurnitureStore ? '✓ ' : ''}{$t('toolbarView.showFurniture')}</button>
           {#if onToggleLayers}
             <button class="w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left" aria-pressed={layersOpen} onclick={() => { onToggleLayers?.(); moreOpen = false; }}>{$t('layers.title')}</button>
