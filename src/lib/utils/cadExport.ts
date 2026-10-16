@@ -8,6 +8,7 @@ import { columnPlanCorners } from './columnPlanGeometry';
 import { hasPlanExportContent } from './planExportContent';
 import { dimensionPlanGeometry } from './dimensionPlanGeometry';
 import { textAnnotationLines } from './textAnnotationLayout';
+import { doorSymbol } from './doorSymbol';
 import { planOpening } from './planOpening';
 import { planWallOutlines } from './planWallOutline';
 import Drawing from 'dxf-writer';
@@ -39,6 +40,9 @@ const LAYER_COLORS = {
   ROOMS: 4,       // cyan
 };
 
+/** Plan (screen) radians to DXF degrees in [0, 360). */
+const cadDegrees = (radians: number) => ((radians * 180 / Math.PI) % 360 + 360) % 360;
+
 /** Returns whether a file was downloaded (an empty floor exports nothing). */
 export function exportDXF(project: Project, language: Locale = 'en'): boolean {
   const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
@@ -50,6 +54,7 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
   // Add layers
   d.addLayer('WALLS', LAYER_COLORS.WALLS, 'CONTINUOUS');
   d.addLayer('DOORS', LAYER_COLORS.DOORS, 'CONTINUOUS');
+  d.addLayer('DOORS_HIDDEN', LAYER_COLORS.DOORS, 'DASHED'); // pocket cavities, doorway thresholds
   d.addLayer('WINDOWS', LAYER_COLORS.WINDOWS, 'CONTINUOUS');
   d.addLayer('FURNITURE', LAYER_COLORS.FURNITURE, 'CONTINUOUS');
   d.addLayer('DIMENSIONS', LAYER_COLORS.DIMENSIONS, 'CONTINUOUS');
@@ -121,56 +126,22 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
     d.drawText((m.x1+m.x2)/2,-(m.y1+m.y2)/2+6,12,0,formatLength(Math.hypot(m.x2-m.x1,m.y2-m.y1),get(projectSettings).units),'center','bottom');
   }
 
-  // Draw doors as arcs + lines
-  d.setActiveLayer('DOORS');
+  // Doors: the shared plan symbol (doorSymbol.ts) mirrored into CAD's y-up frame, so the
+  // hinge jamb, swing side and leaf match the editor, the SVG export and the 3D view.
   for (const original of floor.doors) {
     const source = floor.walls.find(w => w.id === original.wallId);
     if (!source) continue;
     const frame = planOpening(source, original.position, original.width);
     if (!frame) continue;
-    const wall = frame.wall, door = { ...original, position: frame.position, width: frame.width };
-
-    const wdx = wall.end.x - wall.start.x;
-    const wdy = wall.end.y - wall.start.y;
-    const wlen = Math.hypot(wdx, wdy);
-    if (wlen === 0) continue;
-
-    // Door hinge position
-    const hx = wall.start.x + wdx * door.position;
-    const hy = -(wall.start.y + wdy * door.position);
-
-    // Door width as radius
-    const r = door.width / 2;
-
-    // Openings and garage doors have no swing arc
-    if (door.type === 'opening' || door.type === 'garage') {
-      const ux = wdx / wlen, uy = -wdy / wlen; // CAD y is flipped
-      if (door.type === 'garage') {
-        // Panel line across the opening
-        d.drawLine(hx - ux * r, hy - uy * r, hx + ux * r, hy + uy * r);
-      } else {
-        // Doorway: jamb ticks at each side of the opening
-        const nxc = -uy, nyc = ux;
-        const jamb = (wall.thickness ?? 10) / 2 + 2;
-        for (const sign of [-1, 1]) {
-          const jx = hx + ux * r * sign, jy = hy + uy * r * sign;
-          d.drawLine(jx + nxc * jamb, jy + nyc * jamb, jx - nxc * jamb, jy - nyc * jamb);
-        }
-      }
-      continue;
+    for (const part of doorSymbol(frame.wall, { ...original, position: frame.position, width: frame.width })) {
+      if (part.role === 'hinge') continue; // screen-only marker
+      d.setActiveLayer(part.role === 'track' || part.role === 'threshold' ? 'DOORS_HIDDEN' : 'DOORS');
+      if (part.role === 'swing') {
+        // Negating y negates the angles and reverses the sweep; DXF arcs always run counter-clockwise.
+        d.drawArc(part.cx, -part.cy, part.r, cadDegrees(-Math.max(part.from, part.to)), cadDegrees(-Math.min(part.from, part.to)));
+      } else if (part.points.length > 2) d.drawPolyline(part.points.map(p => [p.x, -p.y]));
+      else d.drawLine(part.points[0].x, -part.points[0].y, part.points[1].x, -part.points[1].y);
     }
-
-    // Wall angle in degrees
-    const wallAngle = Math.atan2(-wdy, wdx) * (180 / Math.PI);
-
-    // Draw arc (90 degree swing)
-    const startAngle = door.swingDirection === 'left' ? wallAngle : wallAngle - 90;
-    const endAngle = door.swingDirection === 'left' ? wallAngle + 90 : wallAngle;
-    d.drawArc(hx, hy, r, startAngle, endAngle);
-
-    // Draw door line (the door panel)
-    const panelAngle = (door.swingDirection === 'left' ? wallAngle : wallAngle - 90) * Math.PI / 180;
-    d.drawLine(hx, hy, hx + Math.cos(panelAngle) * r, hy + Math.sin(panelAngle) * r);
   }
 
   // Draw windows as parallel lines

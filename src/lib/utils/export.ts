@@ -13,6 +13,7 @@ import { canvasSymbolSvg } from './canvasSymbolSvg';
 import { furnitureSvg } from './furnitureSvg';
 import { furniturePlanBounds } from './furniturePlanBounds';
 import { canvasPNG } from './canvasPNG';
+import { doorSymbol } from './doorSymbol';
 import { planOpening } from './planOpening';
 import { wallPlanBounds } from './wallPlanGeometry';
 import { wallDimensionLabel } from './wallDimensionLabel';
@@ -29,6 +30,14 @@ import jsPDF from 'jspdf';
 function escapeXml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
+
+/** SVG strokes for the shared door symbol parts (doorSymbol.ts). */
+const DOOR_STROKES = {
+  leaf: 'stroke="#444" stroke-width="2.5"',
+  panel: 'stroke="#444" stroke-width="2"',
+  track: 'stroke="#999" stroke-width="2" stroke-dasharray="4,3"',
+  threshold: 'stroke="#999" stroke-width="1" stroke-dasharray="5,4"',
+};
 
 function download(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
@@ -423,9 +432,6 @@ export function exportAsSVG(project: Project, language: Locale = 'en') {
     const py = wall.start.y + wdy * d.position - minY + pad;
     const hw = d.width / 2;
     const th = Math.max(wall.thickness, 4) / 2 + 1;
-    const wallAngle = Math.atan2(uy, ux);
-    const swingDir = d.swingDirection === 'left' ? 1 : -1;
-    const sideFlip = (d.flipSide ?? false) ? -1 : 1;
 
     // Clear the wall gap
     const gapPts = [
@@ -443,71 +449,18 @@ export function exportAsSVG(project: Project, language: Locale = 'en') {
       paths += `  <line x1="${n2(jx + nx * (th + 1))}" y1="${n2(jy + ny * (th + 1))}" x2="${n2(jx - nx * (th + 1))}" y2="${n2(jy - ny * (th + 1))}" stroke="#444" stroke-width="1.5"/>\n`;
     }
 
-    const doorType = d.type || 'single';
-    const svgArc = (hx: number, hy: number, r: number, a0: number, a1: number) => {
-      const x0 = hx + r * Math.cos(a0), y0 = hy + r * Math.sin(a0);
-      const x1 = hx + r * Math.cos(a1), y1 = hy + r * Math.sin(a1);
-      return {
-        path: `M ${n2(x0)} ${n2(y0)} A ${n2(r)} ${n2(r)} 0 0 ${a1 > a0 ? 1 : 0} ${n2(x1)} ${n2(y1)}`,
-        ex: x1, ey: y1,
-      };
-    };
-
-    if (doorType === 'single' || doorType === 'pocket') {
-      const r = d.width;
-      const hx = px + ux * hw * swingDir;
-      const hy = py + uy * hw * swingDir;
-      const sa = wallAngle + (swingDir === 1 ? Math.PI : 0);
-      const ea = sa + (-swingDir) * sideFlip * (Math.PI / 2);
-      if (doorType === 'pocket') {
-        paths += `  <line x1="${n2(hx)}" y1="${n2(hy)}" x2="${n2(hx + ux * d.width * swingDir)}" y2="${n2(hy + uy * d.width * swingDir)}" stroke="#999" stroke-width="2" stroke-dasharray="4,3"/>\n`;
+    const tx = (x: number) => n2(x - minX + pad), ty = (y: number) => n2(y - minY + pad);
+    for (const part of doorSymbol(wall, d)) {
+      if (part.role === 'swing') {
+        const { cx, cy, r, from, to } = part;
+        paths += `  <path d="M ${tx(cx + r * Math.cos(from))} ${ty(cy + r * Math.sin(from))} A ${n2(r)} ${n2(r)} 0 0 ${to > from ? 1 : 0} ${tx(cx + r * Math.cos(to))} ${ty(cy + r * Math.sin(to))}" fill="none" stroke="#666" stroke-width="1"/>\n`;
+      } else if (part.role === 'hinge') {
+        paths += `  <circle cx="${tx(part.x)}" cy="${ty(part.y)}" r="${part.r}" fill="#444"/>\n`;
+      } else if (part.points.length > 2) {
+        paths += `  <polyline points="${part.points.map(p => `${tx(p.x)},${ty(p.y)}`).join(' ')}" fill="none" stroke="#444" stroke-width="2"/>\n`;
       } else {
-        const arc = svgArc(hx, hy, r, sa, ea);
-        paths += `  <path d="${arc.path}" fill="none" stroke="#666" stroke-width="1"/>\n`;
-      }
-      const panelAngle = doorType === 'pocket' ? sa : ea;
-      paths += `  <line x1="${n2(hx)}" y1="${n2(hy)}" x2="${n2(hx + r * Math.cos(panelAngle))}" y2="${n2(hy + r * Math.sin(panelAngle))}" stroke="#444" stroke-width="2.5"/>\n`;
-      paths += `  <circle cx="${n2(hx)}" cy="${n2(hy)}" r="2.5" fill="#444"/>\n`;
-    } else if (doorType === 'double' || doorType === 'french') {
-      const r = hw;
-      for (const side of [-1, 1] as const) {
-        const hx = px + ux * hw * side;
-        const hy = py + uy * hw * side;
-        const arcSwing = side === -1 ? swingDir : -swingDir;
-        const sa = wallAngle + Math.PI * (side === 1 ? 1 : 0);
-        const ea = sa + arcSwing * sideFlip * (Math.PI / 2);
-        const arc = svgArc(hx, hy, r, sa, ea);
-        paths += `  <path d="${arc.path}" fill="none" stroke="#666" stroke-width="1"/>\n`;
-        paths += `  <line x1="${n2(hx)}" y1="${n2(hy)}" x2="${n2(hx + r * Math.cos(ea))}" y2="${n2(hy + r * Math.sin(ea))}" stroke="#444" stroke-width="2.5"/>\n`;
-        paths += `  <circle cx="${n2(hx)}" cy="${n2(hy)}" r="2" fill="#444"/>\n`;
-      }
-    } else if (doorType === 'sliding') {
-      const panelW = hw * 0.9;
-      const offset = Math.max(wall.thickness, 4) * 0.15 * sideFlip;
-      paths += `  <line x1="${n2(px - ux * hw)}" y1="${n2(py - uy * hw)}" x2="${n2(px + ux * panelW * 0.1)}" y2="${n2(py + uy * panelW * 0.1)}" stroke="#444" stroke-width="2"/>\n`;
-      paths += `  <line x1="${n2(px - ux * panelW * 0.1 + nx * offset)}" y1="${n2(py - uy * panelW * 0.1 + ny * offset)}" x2="${n2(px + ux * hw + nx * offset)}" y2="${n2(py + uy * hw + ny * offset)}" stroke="#444" stroke-width="2"/>\n`;
-    } else if (doorType === 'bifold') {
-      const panelCount = 4;
-      const panelW = d.width / panelCount;
-      const foldAngle = Math.PI / 6;
-      let bx = px - ux * hw;
-      let by = py - uy * hw;
-      let poly = `${n2(bx)},${n2(by)}`;
-      for (let i = 0; i < panelCount; i++) {
-        const angle = wallAngle + (i % 2 === 0 ? foldAngle * swingDir : -foldAngle * swingDir * 0.3);
-        bx += panelW * Math.cos(angle);
-        by += panelW * Math.sin(angle);
-        poly += ` ${n2(bx)},${n2(by)}`;
-      }
-      paths += `  <polyline points="${poly}" fill="none" stroke="#444" stroke-width="2"/>\n`;
-    } else if (doorType === 'garage') {
-      // Overhead garage door: panel line across the opening
-      paths += `  <line x1="${n2(px - ux * hw)}" y1="${n2(py - uy * hw)}" x2="${n2(px + ux * hw)}" y2="${n2(py + uy * hw)}" stroke="#444" stroke-width="2.5"/>\n`;
-    } else if (doorType === 'opening') {
-      // Plain doorway: dashed threshold lines along both wall faces
-      for (const side of [-1, 1]) {
-        const ox = nx * (th - 1) * side, oy = ny * (th - 1) * side;
-        paths += `  <line x1="${n2(px - ux * hw + ox)}" y1="${n2(py - uy * hw + oy)}" x2="${n2(px + ux * hw + ox)}" y2="${n2(py + uy * hw + oy)}" stroke="#999" stroke-width="1" stroke-dasharray="5,4"/>\n`;
+        const [a, b] = part.points;
+        paths += `  <line x1="${tx(a.x)}" y1="${ty(a.y)}" x2="${tx(b.x)}" y2="${ty(b.y)}" ${DOOR_STROKES[part.role]}/>\n`;
       }
     }
   }
