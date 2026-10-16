@@ -42,8 +42,14 @@ version history are saved in this browser." (See
   (~50m²), 2-Bedroom House (~80m²), Open Concept Home (~100m²) and L-Shaped
   House (~120m²). Choosing one creates a new project from it.
 - Each card has a menu ("Project actions for …") with **Open**, **Rename**,
-  **Duplicate** and **Delete**. Deleting asks: "Delete “name” and its version
-  history from this browser? This cannot be undone."
+  **Duplicate** and **Delete**. On a desktop the menu button appears when you
+  point at a card. Deleting asks: "Delete “name” and its version history from
+  this browser? This cannot be undone."
+- **Duplicate** makes an independent copy named "… (Copy)", including the
+  edits you just made if you came straight from the editor. The copy is listed
+  first and outlined, and the line above the list reads "Duplicated as “…
+  (Copy)”." Rename it to tell your variations apart, since their previews look
+  alike. The editor itself has no duplicate command.
 - Below the header: **Download library backup**, **Restore library backup**,
   **Import project package** (see sections 10 and 12) and **User guide**,
   which opens this page in a new tab.
@@ -237,6 +243,17 @@ Bay 200×150cm).
   (**Add Floor**) adds a new top floor seeded with **Exterior walls — current
   footprint**, **All walls — includes partitions** or an **Empty floor**.
   **Remove current floor** is available while there is more than one floor.
+- Building on a layout you already drew:
+  - For a variation of the whole plan (the shell, then the shell with doors
+    and windows), **Duplicate** the project in the library and edit the copy.
+  - For the next storey, **Add Floor** with **Exterior walls** or **All
+    walls**. Only walls are copied, from the floor you are on; doors, windows,
+    stairs, labels and room names stay on the floor where you placed them.
+  - To bring more than walls, select everything (**Ctrl+A**), copy
+    (**Ctrl+C**), switch floors and paste (**Ctrl+V**). Walls with their doors
+    and windows, stairs, labels and dimensions are pasted 30 cm down and to the
+    right of where they were, so drag the selection back into place. Room
+    names are not copied. There is no one-step "duplicate floor".
 - **Settings → Project → Floor elevations** sets each floor's "elevation (cm)"
   ("Set each floor's height above ground for stacked 3D. Use negative values
   for basements. Wall heights and other floors stay unchanged. Defaults are 300

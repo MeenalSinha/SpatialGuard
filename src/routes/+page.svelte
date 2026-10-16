@@ -88,19 +88,27 @@
   function createFromTemplate(index: number) { return createProject(houseTemplates[index].create); }
   function newProject() { return createProject(() => createDefaultProject('Untitled Project')); }
 
+  /** The last copy Duplicate made: named in a status line and outlined in the list. */
+  let duplicatedId = $state<string | null>(null);
+  let duplicateStatus = $state<HTMLElement>(), libraryAlert = $state<HTMLElement>();
+
   async function duplicateProject(id: string) {
     if (duplicating) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    duplicating = true;
+    duplicating = true; duplicatedId = null;
+    let copyId: string | null = null;
     await withLibraryError(async () => {
       const dup = await localStore.duplicate(id);
       if (!dup) throw new Error($t('library.gone'));
+      copyId = dup.id;
     });
     // Refresh errors must not turn a completed copy into a retryable mutation.
     if (!libraryError) await withLibraryError(refreshProjects);
-    duplicating = false;
+    duplicating = false; duplicatedId = copyId;
     await tick();
     if (document.activeElement === document.body && previous?.isConnected) previous.focus();
+    // The copy is listed first, often above the card that was used: show the outcome there.
+    (libraryError ? libraryAlert : duplicateStatus)?.scrollIntoView?.({ block: 'nearest' });
   }
 
   function openAction(type: 'rename' | 'delete', project: { id: string; name: string }) {
@@ -187,7 +195,11 @@
   </div>
 
   <div class="max-w-5xl mx-auto px-6 py-8">
-    {#if duplicating}<p role="status" class="mb-4 text-sm text-gray-500">{$t('library.duplicating')}</p>{/if}
+    {#if duplicating}<p role="status" class="mb-4 text-sm text-gray-500">{$t('library.duplicating')}</p>
+    {:else}
+      {@const copy = projects.find(project => project.id === duplicatedId)}
+      {#if copy}<p role="status" bind:this={duplicateStatus} class="mb-4 text-sm text-gray-600">{$t('library.duplicated', { name: copy.name || $t('library.untitled') })}</p>{/if}
+    {/if}
     <div class="mb-5 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-500">
       <p>{$t('library.local')}</p>
       <div class="flex flex-wrap gap-4">
@@ -199,7 +211,7 @@
     </div>
     <LibraryStorageNote active={projects.length > 0 && !libraryError} />
     {#if libraryError}
-      <div role="alert" class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+      <div role="alert" bind:this={libraryAlert} class="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-900">
         <p>{projectServiceMessage(libraryError, $locale)}</p>
         <div class="mt-3 flex gap-4">
           <button class="font-semibold underline" onclick={() => withLibraryError(refreshProjects)}>{$t('library.retry')}</button>
@@ -228,7 +240,7 @@
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {#each projects as project (project.id)}
-          <div class="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-gray-300 transition-all duration-200 relative">
+          <div class="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-gray-300 transition-all duration-200 relative {project.id === duplicatedId ? 'ring-2 ring-blue-400' : ''}">
             <!-- Thumbnail -->
             <a href={`${base}/editor?id=${encodeURIComponent(project.id)}`} aria-label={$t('library.openName', { name: project.name || $t('library.untitled') })} class="block">
               <div class="aspect-[4/3] bg-gray-100 relative overflow-hidden">

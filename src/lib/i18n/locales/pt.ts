@@ -142,6 +142,7 @@ export const pt = {
   "library.templates": "Modelos",
   "library.new": "Novo projeto",
   "library.duplicating": "Duplicando projeto…",
+  "library.duplicated": "Duplicado como “{name}”.",
   "library.local": "Os projetos e o histórico de versões são salvos neste navegador.",
   "library.backup": "Baixar backup da biblioteca",
   "library.restore": "Restaurar backup da biblioteca",

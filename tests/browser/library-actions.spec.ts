@@ -142,6 +142,8 @@ test('library copies once while busy and deletes only the confirmed project', as
   expect(await storedRecords(page)).toEqual(before);
   await releaseWrites(page);
   await expect(page.getByRole('link', { name: `${project.name} (Copy)`, exact: true })).toBeVisible();
+  // The copy is listed first, so the outcome names it rather than leaving the list to change silently.
+  await expect(page.getByRole('status')).toHaveText(`Duplicated as “${project.name} (Copy)”.`);
   const copied = await savedProjects(page), copy = Object.values(copied).find(p => p.name === `${project.name} (Copy)`)!;
   expect(Object.keys(copied)).toHaveLength(3); expect(copy.floors).toEqual(project.floors);
   await action(page, 'Delete', copy.name);

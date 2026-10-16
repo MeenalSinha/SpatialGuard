@@ -142,6 +142,7 @@ export const en = {
   "library.templates": "Templates",
   "library.new": "New Project",
   "library.duplicating": "Duplicating project…",
+  "library.duplicated": "Duplicated as “{name}”.",
   "library.local": "Projects and version history are saved in this browser.",
   "library.backup": "Download library backup",
   "library.restore": "Restore library backup",
