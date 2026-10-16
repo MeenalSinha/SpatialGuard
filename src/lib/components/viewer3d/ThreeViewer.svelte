@@ -33,6 +33,7 @@
   import { getCatalogItem, furnitureCatalog, furnitureCategories } from '$lib/utils/furnitureCatalog';
   import type { FurnitureDef } from '$lib/utils/furnitureCatalog';
   import { createWallHighlight } from '$lib/utils/wallHighlight';
+  import { applyWallXray } from '$lib/utils/wallXray';
   import { disposeModel, ownTexture } from '$lib/utils/furnitureModelResources';
   import { createFurnitureModelWithGLB, createPlacedFurnitureModel } from '$lib/utils/furnitureModelLoader';
   import { addFurniture } from '$lib/stores/project';
@@ -396,35 +397,13 @@
     interiorCamera.updateProjectionMatrix();
   }
 
-  /** Set wall/ceiling/door meshes to transparent for x-ray preview.
-   *  Saves original material state so it can be restored cleanly. */
-  const xrayOriginals = new Map<THREE.Mesh, { transparent: boolean; opacity: number; depthWrite: boolean }>();
+  /** Fade walls with their baseboards, doors and windows, and ceilings (the meshes
+   *  buildWalls flags userData.xray) for the x-ray preview; room contents keep their
+   *  look. Every faded material is restored exactly when x-ray is switched off. */
+  let restoreWallsXray: (() => void) | null = null;
   function setWallsXray(xray: boolean) {
-    if (!wallGroup) return;
-    if (xray) {
-      xrayOriginals.clear();
-      wallGroup.traverse((obj) => {
-        if (obj instanceof THREE.Mesh && !(obj instanceof THREE.Sprite)) {
-          const mat = obj.material as THREE.MeshStandardMaterial;
-          if (!mat) return;
-          xrayOriginals.set(obj, { transparent: mat.transparent, opacity: mat.opacity, depthWrite: mat.depthWrite });
-          mat.transparent = true;
-          mat.opacity = 0.12;
-          mat.depthWrite = false;
-          mat.needsUpdate = true;
-        }
-      });
-    } else {
-      for (const [mesh, orig] of xrayOriginals) {
-        const mat = mesh.material as THREE.MeshStandardMaterial;
-        if (!mat) continue;
-        mat.transparent = orig.transparent;
-        mat.opacity = orig.opacity;
-        mat.depthWrite = orig.depthWrite;
-        mat.needsUpdate = true;
-      }
-      xrayOriginals.clear();
-    }
+    restoreWallsXray?.();
+    restoreWallsXray = xray && wallGroup ? applyWallXray(wallGroup) : null;
   }
 
   function captureInteriorPhoto() {
@@ -1208,6 +1187,7 @@
       mesh.position.set(center.x, (rect.bottom + rect.top) / 2, center.y);
       mesh.rotation.y = -Math.atan2(span.end.y - span.start.y, span.end.x - span.start.x);
       mesh.userData.renderExclude = excludeFromRender;
+      mesh.userData.xray = true;
       mesh.castShadow = !excludeFromRender;
       wallGroup.add(mesh);
     }
@@ -1283,7 +1263,7 @@
             const mesh = new THREE.Mesh(geo, materials);
             mesh.castShadow = true; mesh.receiveShadow = true;
             mesh.position.set(span.start.x + segment.offsetX * Math.cos(angle), 0, span.start.y + segment.offsetX * Math.sin(angle));
-            mesh.rotation.y = -angle; mesh.userData.wallId = wall.id;
+            mesh.rotation.y = -angle; mesh.userData.wallId = wall.id; mesh.userData.xray = true;
             wallMeshMap.set(mesh, wall.id); wallGroup.add(mesh);
           }
         }
@@ -1295,7 +1275,7 @@
             for (const segment of span.segments) {
               const mesh = new THREE.Mesh(createSlopedBoxGeometry(segment.width, t + 2, segment.bottomY, segment.topYLeft, segment.topYRight), baseboardMat);
               mesh.position.set(span.start.x + segment.offsetX * Math.cos(angle), 0, span.start.y + segment.offsetX * Math.sin(angle));
-              mesh.rotation.y = -angle; mesh.castShadow = true; wallGroup.add(mesh);
+              mesh.rotation.y = -angle; mesh.castShadow = true; mesh.userData.xray = true; wallGroup.add(mesh);
             }
           }
         }
@@ -1337,6 +1317,7 @@
           );
           mesh.rotation.y = -angle;
           mesh.userData.wallId = wall.id;
+          mesh.userData.xray = true;
           wallMeshMap.set(mesh, wall.id);
           wallGroup.add(mesh);
         }
@@ -1350,6 +1331,7 @@
             bbMesh.position.set(cx + localX * Math.cos(angle), 0, cy + localX * Math.sin(angle));
             bbMesh.rotation.y = -angle;
             bbMesh.castShadow = true;
+            bbMesh.userData.xray = true;
             wallGroup.add(bbMesh);
           }
         }
@@ -1393,6 +1375,7 @@
           secMesh.position.set(px, secH / 2 + 2 + si * secH, py);
           secMesh.rotation.y = -angle;
           secMesh.castShadow = true;
+          secMesh.userData.xray = true;
           wallGroup.add(secMesh);
         }
       } else {
@@ -1406,6 +1389,7 @@
         panelMesh.position.set(pose.x, doorHeight / 2 - 2, pose.z);
         panelMesh.rotation.y = -pose.yaw;
         panelMesh.castShadow = true;
+        panelMesh.userData.xray = true;
         wallGroup.add(panelMesh);
 
         // Door handle (small sphere)
@@ -1421,6 +1405,7 @@
           Math.min(100, doorHeight * 0.5),
           panelMesh.position.z + handleLocalX * handleSin
         );
+        handleMesh.userData.xray = true;
         wallGroup.add(handleMesh);
       }
     }
@@ -1619,6 +1604,7 @@
         const ceilGeo = new THREE.ShapeGeometry(shape);
         const ceilMesh = new THREE.Mesh(ceilGeo, ceilMat);
         ceilMesh.userData.renderExclude = true;
+        ceilMesh.userData.xray = true;
         ceilMesh.rotation.x = -Math.PI / 2;
         ceilMesh.position.y = ceilingHeight;
         ceilMesh.receiveShadow = true;
