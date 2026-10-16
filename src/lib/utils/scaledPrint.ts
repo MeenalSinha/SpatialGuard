@@ -9,41 +9,25 @@ import { visiblePlanFloor, type PlanExportVisibility } from './exportVisibility'
 import { resolveRooms } from './roomDetection';
 import { drawRooms, drawDoorOnWall, drawWindowOnWall, drawFurnitureItem, drawStair, drawColumn, drawAnnotations, drawPersistedMeasurements, drawTextAnnotations, drawEntourageItems } from './canvasRenderer';
 import { worldToScreen, type CanvasState } from './canvasInteraction';
-import { activePrintFloor, printBounds, calculatePrintLayout, type PrintOptions } from './printLayout';
-import { furnitureCaptionBounds } from './furnitureCaption';
+import { activePrintFloor, printPageLayout, type PrintInk, type PrintOptions } from './printLayout';
 
 const PIXELS_PER_MM = 6;
 
-/**
- * The sheet layout, with room for furniture captions. They are drawn at a fixed size on paper, so
- * their extent in plan centimetres grows as the scale shrinks; 'fit' settles it in a few passes.
- * Layers hidden in the 2D view are left out, as in the other exports.
- */
-function sheetLayout(project: Project, options: PrintOptions, ctx: CanvasRenderingContext2D | null, visibility: PlanExportVisibility) {
-  const source = activePrintFloor(project), floor = source && visiblePlanFloor(source, visibility);
-  const bounds = floor && printBounds(floor, project.customEntourage);
-  if (!bounds) return null;
-  let layout = calculatePrintLayout(bounds, options);
-  for (let pass = 0; ctx && pass < 8; pass++) {
-    for (const item of floor.furniture) {
-      const b = furnitureCaptionBounds(item, customModelName(item, project), ctx, layout.mmPerCm * PIXELS_PER_MM);
-      if (!b) continue;
-      bounds.minX = Math.min(bounds.minX, b.minX); bounds.minY = Math.min(bounds.minY, b.minY);
-      bounds.maxX = Math.max(bounds.maxX, b.maxX); bounds.maxY = Math.max(bounds.maxY, b.maxY);
-    }
-    const next = calculatePrintLayout(bounds, options), settled = next.mmPerCm >= layout.mmPerCm * (1 - 1e-9);
-    layout = next;
-    if (settled) break;
-  }
-  return { floor, layout };
+/** Labels and furniture captions are measured on the page canvas itself, at the page's pixel density. */
+function printInk(canvas: HTMLCanvasElement, project: Project, visibility: PlanExportVisibility): PrintInk | undefined {
+  const context = typeof canvas.getContext === 'function' ? canvas.getContext('2d') : null;
+  return context ? {
+    context, pixelsPerMm: PIXELS_PER_MM, roomLabels: visibility.roomLabels, roomDimensions: visibility.roomDimensions,
+    units: get(projectSettings).units, furnitureCaption: item => customModelName(item, project),
+  } : undefined;
 }
 
 /** Preview and PDF use the same fixed physical page, independent of screen size/DPR. Layers hidden in the 2D view are left out. */
 export function renderPrintPage(canvas: HTMLCanvasElement, project: Project, options: PrintOptions, language: Locale = 'en', visibility: PlanExportVisibility = currentPlanExportVisibility()) {
+  const source = activePrintFloor(project), floor = source && visiblePlanFloor(source, visibility);
+  const layout = floor && printPageLayout(floor, project.customEntourage, options, printInk(canvas, project, visibility));
+  if (!floor || !layout) return null;
   const ctx = canvas.getContext('2d')!;
-  const sheet = sheetLayout(project, options, ctx, visibility);
-  if (!sheet) return null;
-  const { floor, layout } = sheet;
   const { pageWidth, pageHeight, area, center, mmPerCm } = layout;
   canvas.width = Math.round(pageWidth * PIXELS_PER_MM);
   canvas.height = Math.round(pageHeight * PIXELS_PER_MM);
@@ -86,13 +70,14 @@ export function renderPrintPage(canvas: HTMLCanvasElement, project: Project, opt
   }
   for (const door of floor.doors) { const wall = floor.walls.find(w => w.id === door.wallId); if (wall) drawDoorOnWall(cs, wall, door); }
   for (const win of floor.windows) { const wall = floor.walls.find(w => w.id === win.wallId); if (wall) drawWindowOnWall(cs, wall, win); }
+  // Under furniture, stairs and notes, as in the editor and the other exports, so an uploaded symbol cannot cover a label.
+  drawEntourageItems(cs, floor, null, project.customEntourage);
   for (const item of floor.furniture) drawFurnitureItem(cs, item, false, customModelName(item, project));
   for (const item of floor.stairs ?? []) drawStair(cs, item, false);
   for (const item of floor.columns ?? []) drawColumn(cs, item, false);
   drawAnnotations(cs, floor, null, settings);
   drawPersistedMeasurements(cs, floor, null, settings);
   drawTextAnnotations(cs, floor, null, null);
-  drawEntourageItems(cs, floor, null, project.customEntourage);
   ctx.restore();
   ctx.textAlign = 'left'; ctx.fillStyle = '#64748b'; ctx.font = '2.5px sans-serif';
   ctx.fillText(translate(language, 'print.sheetFooter'), 12, pageHeight - 7, pageWidth - 24);
@@ -106,9 +91,9 @@ export function renderPrintPage(canvas: HTMLCanvasElement, project: Project, opt
 }
 
 export function createPrintPDF(canvas: HTMLCanvasElement, project: Project, options: PrintOptions, language: Locale = 'en', visibility: PlanExportVisibility = currentPlanExportVisibility()) {
-  const sheet = sheetLayout(project, options, canvas.getContext('2d'), visibility);
-  if (!sheet) throw new Error(translate(language, 'print.empty'));
-  const { floor, layout } = sheet;
+  const source = activePrintFloor(project), floor = source && visiblePlanFloor(source, visibility);
+  const layout = floor && printPageLayout(floor, project.customEntourage, options, printInk(canvas, project, visibility));
+  if (!floor || !layout) throw new Error(translate(language, 'print.empty'));
   if (!layout.fits) throw new Error(translate(language, 'print.pdfOverflow'));
   const pdf = new jsPDF({ unit: 'mm', format: options.pageSize, orientation: options.orientation });
   pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, layout.pageWidth, layout.pageHeight);

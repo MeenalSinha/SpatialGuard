@@ -643,7 +643,10 @@ Export as SVG, PNG or PDF instead." (or "A DWG …").
 - **Page:** Letter or A4. **Orientation:** Landscape or Portrait.
 - **Scale:** **Fit to page**, 1:25, 1:50, 1:100 or 1:200. If the plan does not
   fit you will read "The plan does not fit at this scale. Choose a smaller
-  scale, another orientation, or Fit to page."
+  scale, another orientation, or Fit to page." Room labels, notes and the
+  captions of stairs, measurements and dimensions count as part of the plan,
+  so **Fit to page** keeps them whole on the sheet. Lettering keeps a minimum
+  size on paper, so at small scales it takes up more of the plan.
 - **Download PDF** saves `<project>-1-50.pdf` (the scale is part of the name);
   **Print** opens the browser's print dialog for the same page.
 - The sheet shows the project name and "Scale: 1:50"; the PDF also includes
