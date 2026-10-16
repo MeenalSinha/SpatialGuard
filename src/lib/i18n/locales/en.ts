@@ -36,6 +36,8 @@ export const en = {
   "settings.saveKey": "Save Key",
   "settings.saved": "✓ Saved",
   "settings.remove": "Remove",
+  "settings.geminiKeySaveFailed": "Browser storage is unavailable. The key could not be saved.",
+  "settings.geminiKeyRemoveFailed": "Browser storage is unavailable. The key could not be removed.",
   "settings.howToGetGeminiKey": "How to get a Gemini key",
   "settings.goTo": "Go to",
   "settings.goToGoogleAiStudio": "Google AI Studio",

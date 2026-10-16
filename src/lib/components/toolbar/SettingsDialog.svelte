@@ -1,13 +1,13 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { locale, t, type Locale } from '$lib/i18n';
+  import { locale, t, type Locale, type TranslationKey } from '$lib/i18n';
   import { modalDialog } from '$lib/utils/modalDialog';
   import { projectSettings } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
   import { currentProject, updateProjectDescription, updateProjectName } from '$lib/stores/project';
   import type { Project } from '$lib/models/types';
   import { themePreference, type ThemePreference } from '$lib/stores/theme';
-  import { getGeminiKey } from '$lib/stores/aiKeys';
+  import { getGeminiKey, setGeminiKey } from '$lib/stores/aiKeys';
   import OpenAISettings from '$lib/components/ai/OpenAISettings.svelte';
   import FloorElevations from './FloorElevations.svelte';
 
@@ -35,29 +35,25 @@
   let geminiKey = $state('');
   let geminiKeyVisible = $state(false);
   let geminiKeySaved = $state(false);
+  let geminiKeyError = $state<TranslationKey | null>(null);
 
   // Load API keys from localStorage; the editor always mounts this dialog, so blocked storage must not throw.
   if (typeof window !== 'undefined') {
     geminiKey = getGeminiKey() ?? '';
   }
 
+  // Blocked or full storage keeps nothing; say so instead of claiming the key was saved.
   function saveGeminiKey() {
-    if (typeof window !== 'undefined') {
-      if (geminiKey.trim()) {
-        localStorage.setItem('o3d_gemini_key', geminiKey.trim());
-      } else {
-        localStorage.removeItem('o3d_gemini_key');
-      }
-      geminiKeySaved = true;
-      setTimeout(() => { geminiKeySaved = false; }, 2000);
-    }
+    geminiKeyError = null;
+    try { setGeminiKey(geminiKey); } catch { geminiKeyError = 'settings.geminiKeySaveFailed'; return; }
+    geminiKeySaved = true;
+    setTimeout(() => { geminiKeySaved = false; }, 2000);
   }
 
   function clearGeminiKey() {
+    geminiKeyError = null;
+    try { setGeminiKey(''); } catch { geminiKeyError = 'settings.geminiKeyRemoveFailed'; return; }
     geminiKey = '';
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('o3d_gemini_key');
-    }
     geminiKeySaved = true;
     setTimeout(() => { geminiKeySaved = false; }, 2000);
   }
@@ -308,7 +304,7 @@
                   <input
                     type={geminiKeyVisible ? 'text' : 'password'}
                     value={geminiKey}
-                    oninput={(e) => { geminiKey = (e.target as HTMLInputElement).value; }}
+                    oninput={(e) => { geminiKey = (e.target as HTMLInputElement).value; geminiKeyError = null; }}
                     class="w-full px-3 py-2 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-mono focus:ring-2 focus:ring-slate-500 focus:border-slate-500 outline-none bg-white dark:bg-gray-700 dark:text-gray-100"
                     placeholder="AIza..."
                   />
@@ -337,6 +333,7 @@
                   </button>
                 {/if}
               </div>
+              {#if geminiKeyError}<p role="alert" class="mt-2 text-xs text-red-600 dark:text-red-400">{$t(geminiKeyError)}</p>{/if}
             </div>
             <div class="border-t border-gray-200 dark:border-gray-700 pt-4">
               <span class="text-sm font-medium text-gray-700 dark:text-gray-300 block mb-2">{$t('settings.howToGetGeminiKey')}</span>

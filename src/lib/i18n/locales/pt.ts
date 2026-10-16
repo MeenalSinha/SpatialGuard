@@ -36,6 +36,8 @@ export const pt = {
   "settings.saveKey": "Salvar Chave",
   "settings.saved": "✓ Salvo",
   "settings.remove": "Remover",
+  "settings.geminiKeySaveFailed": "O armazenamento do navegador está indisponível. Não foi possível salvar a chave.",
+  "settings.geminiKeyRemoveFailed": "O armazenamento do navegador está indisponível. Não foi possível remover a chave.",
   "settings.howToGetGeminiKey": "Como obter uma chave Gemini",
   "settings.goTo": "Acesse",
   "settings.goToGoogleAiStudio": "Google AI Studio",
