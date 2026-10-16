@@ -9,6 +9,7 @@
   import { base } from '$app/paths';
   import { createDefaultProject } from '$lib/stores/project';
   import { houseTemplates } from '$lib/utils/houseTemplates';
+  import { modalDialog, reconcileNativeClose } from '$lib/utils/modalDialog';
 
   const openingLifetime = new AbortController();
   onDestroy(() => openingLifetime.abort());
@@ -89,14 +90,26 @@
       markSeen();
     }
   }
+
+  /** Escape goes back from the tour and the templates. The main card has no dismiss
+   * control, so Escape is refused there. */
+  function goBack(event: Event) {
+    event.preventDefault();
+    if (showTour) showTour = false;
+    else if (showTemplates) showTemplates = false;
+  }
 </script>
 
-<input type="file" accept=".json" class="hidden" bind:this={fileInput} onchange={onFileSelected} />
+<!-- Backdrop: a native modal keeps focus here and the library behind it inert. A close the
+     browser forces anyway (a repeated Escape, or Back on Android) dismisses the welcome for
+     this visit without marking it seen; reopening it would trap those close requests. -->
+<dialog use:modalDialog aria-label={$t('welcome.title')} oncancel={goBack} onclose={(event) => reconcileNativeClose(event, false, onDismiss)}
+  class="modal-overlay fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+  <!-- Inside the dialog: everything outside an open modal is inert. -->
+  <input type="file" accept=".json" class="hidden" bind:this={fileInput} onchange={onFileSelected} />
 
-{#if importError}<ImportError title={$t('welcome.openFailed')} message={importError} onDismiss={() => importError = null} />{/if}
+  {#if importError}<ImportError title={$t('welcome.openFailed')} message={importError} onDismiss={() => importError = null} />{/if}
 
-<!-- Backdrop -->
-<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
   {#if showTour}
     <!-- Tour overlay -->
     <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 text-center">
@@ -199,4 +212,4 @@
       {/if}
     </div>
   {/if}
-</div>
+</dialog>
