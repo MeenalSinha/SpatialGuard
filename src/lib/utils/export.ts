@@ -25,11 +25,7 @@ import type { CanvasState } from '$lib/utils/canvasInteraction';
 import { projectSettings, formatArea, formatLength } from '$lib/stores/settings';
 import { get } from 'svelte/store';
 import jsPDF from 'jspdf';
-
-/** Escape text for safe SVG embedding */
-function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-}
+import { escapeXml } from './exportText';
 
 /** SVG strokes for the shared door symbol parts (doorSymbol.ts). */
 const DOOR_STROKES = {

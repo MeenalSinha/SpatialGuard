@@ -362,6 +362,34 @@ it('labels placed custom models with their saved name in SVG, DXF, PNG and PDF, 
   expect(project).toEqual(before);
 });
 
+it('keeps DXF tags paired and the SVG well-formed when saved text holds line breaks or control characters', async () => {
+  const source = roomProject(), floor = source.floors[0];
+  floor.rooms = resolveRooms(floor).map(room => ({ ...room, name: 'Living\r\nroom\u0007' }));
+  floor.textAnnotations = [{ id: 'note', x: 200, y: 100, text: 'First line\r\nSecond\u0000 line', fontSize: 16, color: '#123456', rotation: 0 }];
+  floor.annotations = [{ id: 'dim', x1: 0, y1: 400, x2: 300, y2: 400, offset: 40, label: 'Saved\ndimension\u001b' }];
+  source.customModels = [{ id: 'credenza', name: 'Walnut\nCredenza\u0007', assetName: 'credenza.glb', sourceFilename: 'Credenza.glb',
+    sha256: 'a'.repeat(64), byteLength: 20, width: 123.5, depth: 67, height: 89 }];
+  const project = placeCustomModel(source, 'credenza', { x: 200, y: 150 });
+  project.floors[0].furniture[0].color = '#654321\u0007';
+  const before = structuredClone(project);
+  exportDXF(project);
+  // CAD readers take every other line as an integer group code, whichever line ending they split on.
+  const lines = (await downloaded.at(-1)!.text()).split(/\r\n|\r|\n/);
+  expect(lines.length % 2).toBe(0);
+  expect(lines.filter((_, i) => i % 2 === 0).every(code => /^\s*\d+$/.test(code))).toBe(true);
+  const values = lines.filter((_, i) => i % 2 === 1);
+  expect(values).toEqual(expect.arrayContaining(['Living room', 'First line ', 'Second line', 'Saved dimension', 'Walnut Credenza']));
+  expect(values.join('')).not.toMatch(/\p{Cc}/u);
+  exportAsSVG(project);
+  const svg = await downloaded.at(-1)!.text();
+  // XML 1.0 has no representation for these, so a viewer would reject the whole file.
+  expect(svg).not.toMatch(/[\0-\x08\x0B\x0C\x0E-\x1F]/);
+  expect(svg).toContain('>Walnut\nCredenza</text>');
+  expect(svg).toContain('>Living\r\nroom</text>');
+  expect(svg).toContain('#654321');
+  expect(project).toEqual(before);
+});
+
 
 it('draws detailed catalog furniture in both raster exports with readable mirrored captions', async () => {
   const project=roomProject(), floor=project.floors[0];

@@ -6,6 +6,7 @@ import { canvasSymbolDxf } from './canvasSymbolDxf';
 import { drawStair } from './canvasRenderer';
 import { columnPlanCorners } from './columnPlanGeometry';
 import { hasPlanExportContent } from './planExportContent';
+import { cadText } from './exportText';
 import { dimensionPlanGeometry } from './dimensionPlanGeometry';
 import { textAnnotationLines } from './textAnnotationLayout';
 import { doorSymbol } from './doorSymbol';
@@ -69,7 +70,7 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
     if (poly.length < 3) continue;
     const c = roomLabelPosition(room, poly, holes[index]);
     // Y is flipped in screen coords vs CAD coords
-    d.drawText(c.x, -c.y, 8, 0, room.name, 'center', 'middle');
+    d.drawText(c.x, -c.y, 8, 0, cadText(room.name), 'center', 'middle');
     d.drawText(c.x, -c.y - 12, 5, 0, `${formatArea(room.area, get(projectSettings).units)}`, 'center', 'middle');
   }
 
@@ -91,7 +92,7 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
     d.setActiveLayer(layer); d.setTrueColor(parseInt(hex, 16));
     const { fontSize, lines } = textAnnotationLines(note), angle = note.rotation * Math.PI / 180;
     for (const line of lines) {
-      if (line.text) d.drawText(note.x - line.y * Math.sin(angle), -(note.y + line.y * Math.cos(angle)), fontSize, -note.rotation, line.text, 'center', 'middle');
+      if (line.text) d.drawText(note.x - line.y * Math.sin(angle), -(note.y + line.y * Math.cos(angle)), fontSize, -note.rotation, cadText(line.text), 'center', 'middle');
     }
   }
 
@@ -114,7 +115,7 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
     for (const [point, sign] of [[g.start,1],[g.end,-1]] as const) {
       for (const side of [-1,1]) d.drawLine(point.x,-point.y,point.x+g.ux*7*sign+g.nx*3*side,-(point.y+g.uy*7*sign+g.ny*3*side));
     }
-    d.drawText(g.center.x,-g.center.y+4,11,0,note.label || formatLength(g.length,get(projectSettings).units),'center','bottom');
+    d.drawText(g.center.x,-g.center.y+4,11,0,cadText(note.label || formatLength(g.length,get(projectSettings).units)),'center','bottom');
   }
 
   d.addLayer('MEASUREMENTS', 1, 'DASHED');
@@ -202,7 +203,7 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
     }
 
     // Label
-    d.drawText(fx, fy, 4, 0, customModelName(fi, project) ?? (cat ? furnitureName(fi.catalogId, language) : 'Unknown furniture'), 'center', 'middle');
+    d.drawText(fx, fy, 4, 0, cadText(customModelName(fi, project) ?? (cat ? furnitureName(fi.catalogId, language) : 'Unknown furniture')), 'center', 'middle');
   }
 
   d.addLayer('ENTOURAGE', 8, 'CONTINUOUS');
