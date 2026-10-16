@@ -13,7 +13,8 @@
     if (busy) return;
     busy = true; error = null;
     try {
-      const result = await shareWithAssistant(structuredClone(project), includePhotos);
+      // The prop can be a reactive proxy, which structuredClone() rejects; a snapshot is a plain copy.
+      const result = await shareWithAssistant($state.snapshot(project), includePhotos);
       if (!lifetime.signal.aborted) share = result;
     } catch (reason) { if (!lifetime.signal.aborted) error = reason instanceof Error ? reason.message : $t('assistant.failed'); }
     finally { busy = false; }
