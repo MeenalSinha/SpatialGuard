@@ -7,6 +7,7 @@
   import { currentProject, updateProjectDescription, updateProjectName } from '$lib/stores/project';
   import type { Project } from '$lib/models/types';
   import { themePreference, type ThemePreference } from '$lib/stores/theme';
+  import { getGeminiKey } from '$lib/stores/aiKeys';
   import OpenAISettings from '$lib/components/ai/OpenAISettings.svelte';
   import FloorElevations from './FloorElevations.svelte';
 
@@ -35,9 +36,9 @@
   let geminiKeyVisible = $state(false);
   let geminiKeySaved = $state(false);
 
-  // Load API keys from localStorage
+  // Load API keys from localStorage; the editor always mounts this dialog, so blocked storage must not throw.
   if (typeof window !== 'undefined') {
-    geminiKey = localStorage.getItem('o3d_gemini_key') ?? '';
+    geminiKey = getGeminiKey() ?? '';
   }
 
   function saveGeminiKey() {
