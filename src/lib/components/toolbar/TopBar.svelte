@@ -8,6 +8,7 @@
   import { SIBLING_PLANNERS, type SiblingPlannerId } from '$lib/utils/transferLink';
   import { interchangeProjectName } from '$lib/utils/interchange';
   import { modalDialog, hasOpenModal } from '$lib/utils/modalDialog';
+  import { focusInlineEditor } from '$lib/utils/inlineEditorFocus';
   import { openProject, openStoredProject } from '$lib/services/projectOpening';
   import { saveConflict, savingCopy, saveCurrentAsCopy } from '$lib/stores/saveStatus';
   import ImportError from '$lib/components/ImportError.svelte';
@@ -109,6 +110,13 @@
 
   function onNameKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+    else if (e.key === 'Escape') {
+      // Cancel: restore the saved name, so the blur's commit changes nothing. The Escape stays
+      // with the field, so the 3D viewer does not also leave its edit mode.
+      e.stopPropagation();
+      projectName = get(currentProject)?.name ?? projectName;
+      (e.target as HTMLInputElement).blur();
+    }
   }
 
   function onAddFloor(seed: FloorSeed = 'outer') {
@@ -348,6 +356,7 @@
 
   {#if editingName}
     <input
+      use:focusInlineEditor={{ select: true }}
       type="text"
       aria-label={$t('projectToolbar.name')}
       bind:value={projectName}

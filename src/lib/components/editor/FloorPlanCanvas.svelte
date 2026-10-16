@@ -23,6 +23,7 @@
   import { drawFurnitureIcon } from '$lib/utils/furnitureIcons';
   import { handleGlobalShortcut, isEditingField, isControlKey } from '$lib/utils/shortcuts';
   import { hasOpenModal } from '$lib/utils/modalDialog';
+  import { focusInlineEditor } from '$lib/utils/inlineEditorFocus';
   import ContextMenu from './ContextMenu.svelte';
   import { roomPresets, placePreset } from '$lib/utils/roomPresets';
   import { roomTemplates, placeRoomTemplate } from '$lib/utils/roomTemplates';
@@ -125,15 +126,6 @@
       updateAnnotation(editingDimensionId, { label: dimensionLabel.trim() });
     }
     editingDimensionId = null;
-  }
-
-  function focusInlineEditor(node: HTMLInputElement) {
-    // Placement starts on mousedown. Focus after its default canvas focus has
-    // completed, and cancel pending focus when the inline editor is dismissed.
-    const frame = requestAnimationFrame(() => {
-      if (node.isConnected && !hasOpenModal()) node.focus({ preventScroll: true });
-    });
-    return { destroy: () => cancelAnimationFrame(frame) };
   }
 
   // Text annotation tool
