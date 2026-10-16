@@ -1,6 +1,6 @@
 import { prepareEntourageImage } from './entourageImages';
 import { translate, type Locale, type TranslationKey } from '$lib/i18n';
-import { furnitureName } from '$lib/i18n/furnitureNames';
+import { furnitureName, customModelName } from '$lib/i18n/furnitureNames';
 import { roomHoles, traceRoomRings } from './roomNesting';
 import { getEntourageDef } from './entourageCatalog';
 import { entouragePlanBounds } from './entouragePlanBounds';
@@ -293,7 +293,7 @@ export async function exportAsPNG(canvas: HTMLCanvasElement | null, project?: Pr
 
       for (const item of floor.furniture) drawFurnitureItem({
         ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY,
-      }, item, false);
+      }, item, false, customModelName(item, snapshot));
 
       ctx.save();
       for (const stair of floor.stairs ?? []) drawStair({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, stair, false);
@@ -510,7 +510,7 @@ export function exportAsSVG(project: Project, language: Locale = 'en') {
     paths+=`  <g data-furniture="${escapeXml(fi.id)}" data-width="${fw}" data-depth="${fd}" transform="translate(${fx},${fy}) rotate(${fi.rotation || 0})">\n`;
     paths+=`<g transform="scale(${Math.sign(fi.scale?.x ?? 1)||1},${Math.sign(fi.scale?.y ?? 1)||1})">${furnitureSvg(fi.catalogId,fw,fd,color)}</g>\n`;
     const fontSize=Math.max(8,Math.min(12,Math.min(fw,fd)*0.2));
-    if(Math.min(fw,fd)>20) paths+=`<text x="0" y="${fd/2+fontSize*0.8}" text-anchor="middle" dominant-baseline="central" font-size="${fontSize*0.7}" fill="#374151" font-family="sans-serif">${escapeXml(cat ? furnitureName(fi.catalogId, language) : 'Unknown furniture')}</text>\n`;
+    if(Math.min(fw,fd)>20) paths+=`<text x="0" y="${fd/2+fontSize*0.8}" text-anchor="middle" dominant-baseline="central" font-size="${fontSize*0.7}" fill="#374151" font-family="sans-serif">${escapeXml(customModelName(fi, project) ?? (cat ? furnitureName(fi.catalogId, language) : 'Unknown furniture'))}</text>\n`;
     paths+='  </g>\n';
   }
 
@@ -780,7 +780,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
 
   for (const item of floor.furniture) drawFurnitureItem({
     ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY,
-  }, item, false);
+  }, item, false, customModelName(item, project));
 
   ctx.save();
   for (const stair of floor.stairs ?? []) drawStair({ ctx, width: pad * 2, height: pad * 2, zoom: 1, camX: minX, camY: minY }, stair, false);

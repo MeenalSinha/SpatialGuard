@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import { translate, type Locale } from '$lib/i18n';
+import { customModelName } from '$lib/i18n/furnitureNames';
 import { get } from 'svelte/store';
 import type { Project } from '$lib/models/types';
 import { projectSettings, formatArea } from '$lib/stores/settings';
@@ -59,7 +60,7 @@ export function renderPrintPage(canvas: HTMLCanvasElement, project: Project, opt
   }
   for (const door of floor.doors) { const wall = floor.walls.find(w => w.id === door.wallId); if (wall) drawDoorOnWall(cs, wall, door); }
   for (const win of floor.windows) { const wall = floor.walls.find(w => w.id === win.wallId); if (wall) drawWindowOnWall(cs, wall, win); }
-  for (const item of floor.furniture) drawFurnitureItem(cs, item, false);
+  for (const item of floor.furniture) drawFurnitureItem(cs, item, false, customModelName(item, project));
   for (const item of floor.stairs ?? []) drawStair(cs, item, false);
   for (const item of floor.columns ?? []) drawColumn(cs, item, false);
   drawAnnotations(cs, floor, null, settings);

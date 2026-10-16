@@ -1,6 +1,6 @@
 import { drawEntourageDxf } from './entourageDxf';
 import type { Locale } from '$lib/i18n';
-import { furnitureName } from '$lib/i18n/furnitureNames';
+import { furnitureName, customModelName } from '$lib/i18n/furnitureNames';
 import { getEntourageDef } from './entourageCatalog';
 import { canvasSymbolDxf } from './canvasSymbolDxf';
 import { drawStair } from './canvasRenderer';
@@ -202,7 +202,7 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
     }
 
     // Label
-    d.drawText(fx, fy, 4, 0, cat ? furnitureName(fi.catalogId, language) : 'Unknown furniture', 'center', 'middle');
+    d.drawText(fx, fy, 4, 0, customModelName(fi, project) ?? (cat ? furnitureName(fi.catalogId, language) : 'Unknown furniture'), 'center', 'middle');
   }
 
   d.addLayer('ENTOURAGE', 8, 'CONTINUOUS');

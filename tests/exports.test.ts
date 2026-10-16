@@ -1,6 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import { exportAsSVG, exportAsPNG, exportPDF } from '$lib/utils/export';
 import { exportDXF, exportDWG } from '$lib/utils/cadExport';
+import { placeCustomModel } from '$lib/services/customModels';
 import { resolveRooms } from '$lib/utils/roomDetection';
 import { benchmarkProject } from './fixtures/render-benchmark';
 import { rectangleWalls, roomProject } from './fixtures/project';
@@ -309,6 +310,45 @@ it.each([false, true])('exports missing-catalog furniture with shared dimensions
   for (const [i, [x, y]] of [[-width/2,-depth/2],[width/2,-depth/2],[width/2,depth/2],[-width/2,depth/2]].entries()) {
     expect(vertices[i].x).toBeCloseTo(100 + x*Math.cos(angle)-y*Math.sin(angle));
     expect(vertices[i].y).toBeCloseTo(-200 - x*Math.sin(angle)-y*Math.cos(angle));
+  }
+  expect(project).toEqual(before);
+});
+
+it('labels placed custom models with their saved name in SVG, DXF, PNG and PDF, as the editor does', async () => {
+  const source = roomProject(), floor = source.floors[0];
+  floor.walls = []; floor.rooms = []; floor.doors = []; floor.windows = [];
+  source.customModels = [{ id: 'credenza', name: 'Walnut & Oak <Credenza>', assetName: 'credenza.glb', sourceFilename: 'Credenza.glb',
+    sha256: 'a'.repeat(64), byteLength: 20, width: 123.5, depth: 67, height: 89 }];
+  const project = placeCustomModel(source, 'credenza', { x: 100, y: 200 });
+  const before = structuredClone(project);
+  const svgs: string[] = [];
+  for (const language of ['en', 'pt'] as const) {
+    exportAsSVG(project, language);
+    const svg = await downloaded.at(-1)!.text();
+    expect(svg).toContain('>Walnut &amp; Oak &lt;Credenza&gt;</text>');
+    expect(svg).not.toContain('Unknown furniture');
+    svgs.push(svg);
+    exportDXF(project, language);
+    const dxf = await downloaded.at(-1)!.text();
+    const lines = dxf.trim().split(/\r?\n/).map(line => line.trim());
+    const entities: Record<string, string>[] = []; let entity: Record<string, string> = {};
+    for (let i = 0; i < lines.length; i += 2) {
+      if (lines[i] === '0') { entity = {}; entities.push(entity); }
+      entity[lines[i]] = lines[i + 1];
+    }
+    const label = entities.find(e => e['0'] === 'TEXT' && e['1'] === 'Walnut & Oak <Credenza>');
+    expect(label?.['8']).toBe('FURNITURE');
+    expect([label?.['10'], label?.['20']]).toEqual(['100', '-200']);
+    expect(dxf).not.toContain('Unknown furniture');
+  }
+  // User-authored names are retained verbatim in every interface language.
+  expect(svgs[1]).toBe(svgs[0]);
+  for (const render of [() => exportAsPNG(null, project), () => exportPDF(project, 'pt')]) {
+    canvasText.mockClear();
+    await render();
+    const captions = canvasText.mock.calls.map(call => call[0]);
+    expect(captions).toContain('Walnut & Oak <Credenza>');
+    expect(captions).not.toContain('Unknown furniture');
   }
   expect(project).toEqual(before);
 });

@@ -3,6 +3,7 @@ import { calculatePrintLayout, printBounds, type PrintOptions } from '$lib/utils
 import { createPrintPDF, renderPrintPage } from '$lib/utils/scaledPrint';
 import { roomProject } from './fixtures/project';
 import { resolveRooms } from '$lib/utils/roomDetection';
+import { placeCustomModel } from '$lib/services/customModels';
 
 const options: PrintOptions = { pageSize: 'a4', orientation: 'landscape', scale: 50 };
 const bounds = { minX: 0, minY: 0, maxX: 1000, maxY: 500 };
@@ -89,5 +90,25 @@ it('localizes the printed sheet and schedule without changing scale or room data
   expect(pdf.output()).toContain('Tabela de ambientes');
   expect(pdf.output()).toContain('Original room name');
   expect(pdf.internal.pageSize.getWidth()).toBeCloseTo(english.pageWidth);
+  expect(JSON.stringify(project)).toBe(before);
+});
+
+it('labels a placed custom model with its saved name on the printed sheet', () => {
+  const source = roomProject();
+  source.floors[0].walls = [];
+  source.customModels = [{ id: 'armchair', name: 'Grandma {name} Armchair', assetName: 'armchair.glb', sourceFilename: 'armchair.glb',
+    sha256: 'ab'.repeat(32), byteLength: 1024, width: 100, depth: 80, height: 90 }];
+  const project = placeCustomModel(source, 'armchair', { x: 200, y: 150 });
+  const before = JSON.stringify(project);
+  const fillText = vi.fn();
+  const context = new Proxy({ fillText, measureText: () => ({ width: 30 }) }, { get: (o, k) => o[k as keyof typeof o] ?? (() => {}) });
+  const canvas = { width: 0, height: 0, getContext: () => context } as unknown as HTMLCanvasElement;
+  for (const language of ['en', 'pt'] as const) {
+    fillText.mockClear();
+    renderPrintPage(canvas, project, options, language);
+    const text = fillText.mock.calls.map(call => call[0]);
+    expect(text).toContain('Grandma {name} Armchair');
+    expect(text).not.toContain('Unknown furniture');
+  }
   expect(JSON.stringify(project)).toBe(before);
 });
