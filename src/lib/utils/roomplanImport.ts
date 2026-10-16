@@ -6,7 +6,8 @@
  * Our coordinate system: 2D XY in centimeters (roomplan X→our X, roomplan Z→our Y)
  */
 
-import type { Floor, Wall, Door, Window, FurnitureItem, Room, Point, Project } from '$lib/models/types';
+import type { Floor, Wall, Door, Window, FurnitureItem, Room, Point, Project, InterchangeState } from '$lib/models/types';
+import { INTERCHANGE_BLOCK_KEYS } from '$lib/models/types';
 import { createDefaultProject, createDefaultFloor } from '$lib/stores/project';
 import { detectRooms, getRoomPolygon } from '$lib/utils/roomDetection';
 import { validateRoomPlan } from './roomplanValidation';
@@ -857,6 +858,30 @@ export function importRoomPlanFloors(
 }
 
 /**
+ * Sibling planner data (OpenKitchen3D, OpenLandscape3D, OpenCatio3D) that the web
+ * model cannot hold: their top-level block, each object's `attributes`, and the
+ * file's `defaults`/`planNotes`. utils/interchange.ts re-emits it on export. Nothing
+ * is retained for a plain capture, so earlier imports stay byte-identical.
+ */
+export function interchangeStateFromRoomPlan(jsonData: any): InterchangeState | undefined {
+  const plain = (value: any) => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const blocks: Record<string, unknown> = {};
+  for (const key of INTERCHANGE_BLOCK_KEYS) if (plain(jsonData[key])) blocks[key] = structuredClone(jsonData[key]);
+  const attributes: Record<string, Record<string, unknown>> = {};
+  for (const object of jsonData.objects ?? []) {
+    if (plain(object?.attributes) && Object.keys(object.attributes).length) attributes[object.identifier] = structuredClone(object.attributes);
+  }
+  if (!Object.keys(blocks).length && !Object.keys(attributes).length) return undefined;
+  return {
+    version: 1,
+    blocks,
+    ...(Object.keys(attributes).length ? { attributes } : {}),
+    ...(plain(jsonData.defaults) ? { defaults: structuredClone(jsonData.defaults) } : {}),
+    ...(typeof jsonData.planNotes === 'string' ? { planNotes: jsonData.planNotes } : {}),
+  };
+}
+
+/**
  * Build a brand-new project from RoomPlan JSON data. Shared by the
  * file-import dialog and the iOS capture handoff (`/editor?import=CODE`).
  * Caller is responsible for loading/saving it.
@@ -883,6 +908,9 @@ export function createProjectFromRoomPlan(
     target.columns = floor.columns ?? [];
     return target;
   });
+
+  const interchange = interchangeStateFromRoomPlan(jsonData);
+  if (interchange) project.interchange = interchange;
 
   // Open on the ground floor when there is one.
   const ground = project.floors.find(f => f.level === 0) ?? project.floors[0];
