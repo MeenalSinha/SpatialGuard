@@ -4,6 +4,134 @@ The user-facing goal status is maintained in [STATUS.md](STATUS.md). Update it
 when implementation, validation, blockers or next priorities change; keep this
 file as the detailed backlog and evidence history.
 
+## Eighteen more hunt defects, a review round and issue #101 — October 16
+
+Branch `fix/editor-defects-3` (PR #112, stacked on #110). The 21 lower-ranked
+findings left over from the October 15 hunt were re-checked by two verifiers
+each (one reproducing, one refuting): 17 confirmed outright, the elevation
+Escape defect by one verifier plus a reading of the code, the interchange
+round-trip loss judged the documented v1 contract (documentation only), the
+history-panel claim refuted, and the Portuguese leaks verified while fixing
+(room-type names stay English by design: the name is also the room-type key
+for fills, patterns, the Type dropdown and the sibling category). Fixed in
+eight parallel worktrees, then reviewed by seven reviewers, whose 13 findings
+were fixed in a second round:
+
+- **3D viewer**: X-ray fades only the wall shell and restores every material
+  (`wallXray.ts`); colour canvas textures decode as sRGB (`viewerTextures.ts`);
+  time-of-day presets repaint the sky (three caches the background cube, so the
+  texture is disposed after a redraw); wall textures tile at a constant 200 cm
+  (`mapWallUVs`); straight-wall baseboards are cut at floor-level windows;
+  without WebGL the view explains why and the one-time 3D tip waits for a
+  working view; the orbit camera re-frames only on a new context
+  (`sceneFraming.ts`), not on edits or texture loads.
+- **Snapping**: the top-bar Snap button and More item follow the store; the
+  status-bar Snap shows the step (25 cm / 10 cm) or "Snap off"; with Snap to
+  Grid off, room, multi-selection and parallel-wall drags and magnetic
+  endpoint snapping stop snapping, as the guide always said (Shift still forces
+  45°; guide-line and wall-alignment snapping for furniture keep their own
+  switches); the canvas now uses the shared `snap()` the unit tests cover.
+- **Keyboard and dialogs**: the project name focuses and selects on click and
+  Escape cancels (`inlineEditorFocus.ts`); the elevation view leaves Escape to
+  focused fields and open menus/panels (`popupOwnsEscape`) and its canvas takes
+  focus when pressed; busy Restore, Import, Share and library rename/delete
+  dialogs re-show after a forced close (`reconcileNativeClose`); Share no longer
+  fails with "could not be cloned"; the welcome overlay is a real modal.
+- **Exports**: SVG/DXF/DWG explain an empty floor, and DXF/DWG a floor whose
+  only content cannot be drawn in CAD (uploaded or fully transparent
+  entourage); custom models are labelled by name everywhere; user text in DXF
+  and SVG is stripped of line breaks and XML-invalid characters
+  (`exportText.ts`); long furniture captions are framed rather than clipped
+  (`furnitureCaption.ts`).
+- **Storage**: blocked site storage shows the designed message; theme, settings
+  (S key, Settings > Dimensions), catalog recents/favourites and the Gemini key
+  apply for the session and fail visibly instead of throwing; onboarding tips
+  dismiss when writes fail; a theme chosen in another tab now holds; the
+  library lock callback never rejects (Firefox reported an immediately
+  rejected Web Locks callback as an uncaught error on every blocked save).
+- **Geometry**: rooms over 1000 m² are detected; a room's outline is now the
+  face it encloses, so a room with an attached closet or office no longer gets
+  the whole perimeter (or the neighbour's outline) as its fill, 3D floor,
+  slab, ceiling, interchange anchor and interior area; duplicated and pasted
+  openings stay fully on their wall.
+- **Portuguese**: Undo History entries, canvas tool hints, painted canvas
+  labels and the error page are translated.
+- **Docs**: interchange lossy lists name floor openings and floor
+  elevation/slab thickness; the in-app help says interchange carries geometry
+  only.
+
+### Issue #101: the six problems in its comment
+
+Under "Is there a Wiki?", an end user (Windows 11, Firefox, everything drawn by
+hand) listed six problems on 2026-09-29; the October 15 work answered only the
+documentation question. Each was reproduced with the modules of the version
+live then (`d68cadf`) and fixed where still wrong:
+
+1. **Duplicating a layout**: a Duplicate started while the editor's last save
+   was still queued turned that save into a conflict and copied the older
+   version, with no visible error, and a successful Duplicate only re-sorted
+   the list. Duplicate now waits for queued library writes without
+   invalidating them, and the library names, outlines and scrolls to the copy.
+   A one-step "duplicate floor" does not exist (feature gap, not built); the
+   guide documents Add Floor's wall seeding and copy/paste between floors.
+2. **An image without dimensions**: no export looked at what was hidden on
+   screen. PNG, PDF, SVG, DXF/DWG and Print Layout now follow the 2D view's
+   layer switches, Room Labels and Settings > Dimensions
+   (`exportVisibility.ts`); everything still exports by default, and a floor
+   whose content is all hidden gets a notice. The status-bar "Automatic
+   dimensions" checkbox now writes the saved Settings > Dimensions switch.
+3. and 4. **Text labels and stairs missing from images**: PNG and PDF gained
+   notes and stairs on 2026-09-13 (#95), so the user most likely exported
+   before that; Print Layout still cropped notes, room labels and L/U/spiral
+   stairs at Fit and drew entourage over them. One fit loop
+   (`printPageLayout`) now measures labels, notes, stair, measurement,
+   dimension and furniture captions at the sheet's scale.
+5. **Projects disappeared**: nothing asked the browser to keep the library.
+   After the first save a person makes, the app now calls
+   `navigator.storage.persist()` once, and while storage is not persistent the
+   library shows a dismissible note recommending Download library backup; the
+   guide explains Firefox's prompt, delete-on-close settings and profiles. The
+   app cannot bring lost projects back.
+6. **A JSON backup that would not load**: Download JSON files imported
+   through Import a Plan and Import JSON, but Restore library backup rejected
+   them, Import JSON rejected library backups, and the project-package picker
+   reported a ZIP layout error. Restore now takes a single-project JSON (as a
+   copy), Import JSON and Import a Plan send library backups to Restore, and the
+   package dialog says where JSON files go. A backup of a plan deleted in the
+   same tab was fixed earlier in this series (`044a797`).
+
+Also fixed while verifying: the wall elevation now refreshes when the shown
+wall is edited in Properties (it kept the old length and heights until
+reopened, because the store edits walls in place).
+
+Verification, October 16, local: `npm test` **1,577 tests in 163 files**, `npm run check` clean,
+production build. Chromium browser runs, each on a fresh build: the first
+round's 18 new or changed specs (32 tests) and 72 dependent specs (193 tests);
+the review round's 63 specs (165 of 166 tests; the elevation case failed on the
+older refresh bug described above, and the four elevation specs then passed in
+all three engines, 24 tests); the issue #101 round's 35 specs (119 of 120; the
+storage-note case relied on the user activation automation grants and now
+models a person's, 18 tests in all three engines). Blocked-storage,
+save-conflict and library specs: 39 tests in all three engines, after a fix for
+Firefox reporting an immediately rejected Web Locks callback as an uncaught
+error. Full three-engine CI runs on the PR.
+
+Known trade-offs and follow-ups (not fixed here):
+- A hand-dragged label in a room whose outline was wrong moves once on reopen
+  (its offset is measured from the outline's centroid).
+- `getRoomPolygon` re-traces faces per call; exports of very large plans are
+  about 1.8× slower (a 266-wall test plan: 176 → 325 ms per pass).
+- 2D PNG, PDF and Print Layout label catalog furniture in English when the UI
+  is Portuguese (SVG/DXF are localized).
+- Export 3D PNG without WebGL waits for its 10 s capture timeout before the
+  failure notice.
+- `ContextToolbar.svelte` is dead code and the user guide (around lines
+  217–219) describes its flip buttons; FloorPlanCanvas still imports
+  `duplicateDoor`/`duplicateWindow` without using them.
+- The render panel reads the Gemini key directly; with storage blocked it
+  shows the browser's raw SecurityError text.
+- New Portuguese strings could use a native speaker's check.
+
 ## Fifteen defects from the October 15 bug hunt — October 16
 
 Branch `fix/editor-defects-2` (stacked on the three branches below). A
@@ -57,11 +185,8 @@ shortcuts, stitching, door join, PDF, walls, rooms, history, editor).
 Sibling parity suites (6/22/4) and the cross-planner harness (4 per planner)
 still pass. Firefox/WebKit not run locally.
 
-Remaining candidates from the same hunt (not yet verified or fixed): 3D
-viewer resource handling (shared materials after X-ray, no WebGL-unavailable
-guard, camera re-framing on scene rebuilds), the two unrelated "Snap to Grid"
-controls, busy dialogs vanishing on a second Escape, blocked site storage
-crashing at load, and the lower-ranked items listed in the hunt record.
+The 21 lower-ranked candidates from the same hunt were verified and handled
+in the next batch (PR #112, the section above).
 
 ## Editor defects found during the October 15 review — October 15
 
@@ -74,7 +199,8 @@ user-visible defects, each with a regression:
   modal open (`tests/shortcuts.test.ts`).
 - Export as DWG: the English `alert()` is gone; the DXF downloads and an
   ExportNotice ("DWG saved as DXF") explains it. `exportDXF`/`exportDWG` return
-  whether a file was downloaded (`tests/exports.test.ts`,
+  whether a file was downloaded (since PR #112, `true` or why nothing was
+  written: `'empty'` or `'unsupported'`) (`tests/exports.test.ts`,
   `tests/browser/dimension-exports.spec.ts`).
 - Build → Import Image: the 5 MB `alert()` is a localized inline note.
 - Wall geometry: `addWall`, `moveWallEndpoint` and `moveWallGeometryDuringDrag`
