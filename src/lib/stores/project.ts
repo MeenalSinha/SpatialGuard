@@ -4,14 +4,15 @@ import { splitWallGeometry } from '$lib/utils/splitWallGeometry';
 import { wallPathProfile } from '$lib/utils/wallProfiles';
 import { duplicatePlanSelection, pastePlanSelection } from '$lib/utils/duplicateSelection';
 import { writable, derived, get } from 'svelte/store';
-import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage, GuideLine, ElementGroup, EntourageItem } from '$lib/models/types';
+import type { Project, Floor, Wall, Door, Window as Win, FurnitureItem, Point, Stair, Column, BackgroundImage, GuideLine, ElementGroup, EntourageItem, InterchangeState } from '$lib/models/types';
 import { planWallResize, finitePoint, validPositiveDimension, validOpeningPosition, type WallEndpoint } from '$lib/utils/wallEditing';
 import { getOuterWalls } from '$lib/utils/outerWalls';
-import { nextFloorLevel, floorElevations, validFloorElevation, DEFAULT_FLOOR_SPACING } from '$lib/utils/floors';
+import { nextFloorLevel, floorElevations, validFloorElevation, orderedFloors, DEFAULT_FLOOR_SPACING } from '$lib/utils/floors';
 import { getWallStartHeight, getWallEndHeight, getWallHeightAt, validWallHeight } from '$lib/models/types';
 import type { DetailTarget, ItemDetails } from '$lib/models/types';
 import { detailItem, itemDetails, validateItemDetails } from '$lib/utils/itemDetails';
 import { readProject } from '$lib/utils/projectValidation';
+import { mergeRoomPlanFloors, type AddedContent } from '$lib/utils/roomplanMerge';
 
 
 function uid(): string {
@@ -358,7 +359,7 @@ export function commitFurnitureMove() {
   snapshot('Moved furniture');
 }
 
-/** Rotate supported unlocked objects around their collective bounds center. */
+/** Rotate supported unlocked objects and walls around their collective bounds center. */
 export function rotateSelection(ids: ReadonlySet<string>, degrees = 15) {
   const project = get(currentProject), floor = get(activeFloor);
   if (!project || !floor) return;
@@ -368,6 +369,10 @@ export function rotateSelection(ids: ReadonlySet<string>, degrees = 15) {
     for (const item of [...f.furniture,...f.stairs ?? [],...f.columns ?? [],...f.entourage ?? []]) {
       const update = updates.get(item.id);
       if (update) Object.assign(item,update);
+    }
+    for (const wall of f.walls) {
+      const update = updates.get(wall.id)?.wall;
+      if (update) Object.assign(wall,update);
     }
     for (const item of f.textAnnotations ?? []) {
       const update = updates.get(item.id);
@@ -945,23 +950,42 @@ export function loadProject(project: Project) {
   syncHistoryStore();
 }
 
-/** Import a floor's data into the current project's active floor (replaces walls/doors/windows/furniture) */
-export function importFloorIntoCurrentProject(floor: import('$lib/models/types').Floor) {
+/** How many elements a merge placed and their ids per floor, for selecting them afterwards. */
+export type RoomPlanMergeResult = { placed: number; added: AddedContent[] };
+
+/** Commit a pure merge as one history entry. Nothing changes while no project is open. */
+function applyRoomPlanMerge(floors: Floor[], description: string, gapCm?: number, interchange?: InterchangeState): RoomPlanMergeResult {
   const p = get(currentProject);
-  if (!p) return;
-  snapshot('Imported floor');
-  const activeFloorIdx = p.floors.findIndex((f) => f.id === p.activeFloorId);
-  if (activeFloorIdx === -1) return;
-  // snapshot was already called above via snapshot('Imported floor')
-  const existing = p.floors[activeFloorIdx];
-  // Merge imported data into the active floor
-  existing.walls = [...existing.walls, ...floor.walls];
-  existing.doors = [...existing.doors, ...floor.doors];
-  existing.windows = [...existing.windows, ...floor.windows];
-  existing.furniture = [...existing.furniture, ...floor.furniture];
-  if (floor.stairs) existing.stairs = [...(existing.stairs || []), ...floor.stairs];
-  if (floor.columns) existing.columns = [...(existing.columns || []), ...floor.columns];
-  currentProject.set({ ...p });
+  if (!p) return { placed: 0, added: [] };
+  const { project, placed, added } = mergeRoomPlanFloors(p, floors, gapCm, interchange);
+  snapshot(description);
+  project.updatedAt = new Date();
+  currentProject.set(project);
+  return { placed, added };
+}
+
+/** Add one floor's content beside the active floor's, whatever level it was scanned as. */
+export function importFloorIntoCurrentProject(floor: Floor, gapCm?: number): RoomPlanMergeResult {
+  const p = get(currentProject);
+  if (!p) return { placed: 0, added: [] };
+  const entries = orderedFloors(p.floors);
+  const active = entries.find(entry => entry.floor.id === p.activeFloorId) ?? entries[0];
+  if (!active) return { placed: 0, added: [] };
+  return applyRoomPlanMerge([{ ...floor, level: active.level }], 'Imported floor', gapCm);
+}
+
+/** Stitch RoomPlan storeys into the open plan by level, as a single undo step; `interchange` carries the file's sibling data. */
+export function addRoomPlanFloorsToProject(floors: Floor[], gapCm?: number, interchange?: InterchangeState): RoomPlanMergeResult {
+  return applyRoomPlanMerge(floors, 'Added RoomPlan scan', gapCm, interchange);
+}
+
+/** Show `floorId` with exactly `ids` selected and a clean editing context (select tool, nothing being placed). */
+export function selectImportedElements(floorId: string, ids: string[]) {
+  const p = get(currentProject);
+  if (!p || !p.floors.some(f => f.id === floorId)) return;
+  if (p.activeFloorId !== floorId) setActiveFloor(floorId); else clearFloorContext();
+  selectedElementIds.set(new Set(ids.length > 1 ? ids : []));
+  selectedElementId.set(ids.length === 1 ? ids[0] : null);
 }
 
 export const selectedRoomId = writable<string | null>(null);
