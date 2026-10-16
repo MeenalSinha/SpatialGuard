@@ -2,7 +2,7 @@
   import { t, locale, translate, type Locale } from '$lib/i18n';
   import { projectServiceMessage } from '$lib/i18n/projectServiceMessages';
   import { templateLabels } from '$lib/i18n/templateLabels';
-  import { modalDialog } from '$lib/utils/modalDialog';
+  import { modalDialog, reconcileNativeClose } from '$lib/utils/modalDialog';
   import { onMount, onDestroy, tick } from 'svelte';
   import { goto } from '$app/navigation';
   import { base } from '$app/paths';
@@ -261,6 +261,7 @@
   {#if actionDialog}
     <dialog use:modalDialog aria-labelledby="library-action-title" aria-describedby="library-action-description"
       oncancel={(event) => { event.preventDefault(); closeAction(); }}
+      onclose={(event) => reconcileNativeClose(event, actionBusy, closeAction)}
       class="m-auto w-[28rem] max-w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-5 text-gray-800 shadow-2xl backdrop:bg-black/50">
       <form onsubmit={(event) => { event.preventDefault(); void submitAction(); }}>
         <h2 id="library-action-title" class="text-lg font-semibold">{actionDialog.type === 'rename' ? $t('library.renameTitle') : $t('library.deleteTitle')}</h2>
