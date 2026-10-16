@@ -26,6 +26,7 @@
   import { updateOrbitDamping } from '$lib/utils/orbitDamping';
   import { portableRenderSceneJSON } from '$lib/utils/portableRenderScene';
   import { sceneSignature } from '$lib/utils/sceneSignature';
+  import { framingContext, shouldFrameScene, type FramingContext } from '$lib/utils/sceneFraming';
   import { WalkthroughMotion } from '$lib/utils/walkthroughMotion';
   import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
   import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
@@ -68,6 +69,7 @@
   let pointerControls: PointerLockControls;
   let currentFloor = $state.raw<Floor | null>(null);
   let renderedSignature: string | null = null;
+  let framedContext: FramingContext | null = null;
   let wallGroup: THREE.Group;
 
   // Raycasting for wall selection in 3D
@@ -1668,7 +1670,6 @@
     buildColumns(floor);
 
     applyWallTransparency();
-    autoCenterCamera();
   }
 
   /** Build all floors stacked vertically in 3D */
@@ -1692,7 +1693,6 @@
     floorPlane.constant = -activeFloorElevation;
     // Keep the presentation ground below basements as well as above-ground floors.
     sceneGround.position.y = Math.min(0, ...entries.map(entry => entry.yOffset)) - 1;
-    autoCenterCamera();
   }
 
   function addFloorLabel(name: string, yOffset: number, labelX: number, labelZ: number) {
@@ -1817,6 +1817,11 @@
       sceneGround.position.y = -1;
       buildWalls(currentFloor);
     }
+    // Fit the orbit camera only for a new project, floor or stacking choice, so edits, Undo/Redo,
+    // unit changes and arriving textures keep the user's view. Walkthrough restores its pose below.
+    const context = framingContext(project, currentFloor, showAllFloors);
+    if (shouldFrameScene(framedContext, context)) autoCenterCamera();
+    framedContext = context;
     wallHighlight.apply(wallMeshMap, selectedWallId3D);
     if (walkingPosition && walkingRotation) {
       camera.position.copy(walkingPosition);
