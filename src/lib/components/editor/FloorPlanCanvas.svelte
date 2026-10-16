@@ -32,7 +32,7 @@
   import { projectSettings, formatLength, formatArea } from '$lib/stores/settings';
   import type { ProjectSettings } from '$lib/stores/settings';
   import { snapStepLabel } from '$lib/utils/snapStep';
-  import { angleSnapWithin, resizeFurnitureFromHandle, type CanvasState } from '$lib/utils/canvasInteraction';
+  import { SNAP, angleSnapWithin, resizeFurnitureFromHandle, snap as _snap, type CanvasState } from '$lib/utils/canvasInteraction';
   import { drawWall as _drawWall, drawDoorOnWall as _drawDoorOnWall, drawWindowOnWall as _drawWindowOnWall, drawDoorDistanceDimensions as _drawDoorDistanceDimensions, drawWindowDistanceDimensions as _drawWindowDistanceDimensions, drawFurnitureItem, drawStair as _drawStair, drawColumn as _drawColumn, drawGuides as _drawGuides, drawPersistedMeasurements as _drawPersistedMeasurements, drawTextAnnotations as _drawTextAnnotations, drawAnnotation as _drawAnnotation, drawAnnotations as _drawAnnotations, drawRooms as _drawRooms, drawWallJoints as _drawWallJoints, drawSnapPoints as _drawSnapPoints, drawMinimap as _drawMinimap, drawEntourageItems as _drawEntourageItems, drawEntourageGhost as _drawEntourageGhost, drawFloorBelowGhost as _drawFloorBelowGhost, entourageAspect } from '$lib/utils/canvasRenderer';
   import { getEntourageDef } from '$lib/utils/entourageCatalog';
   import { translatedOpeningPosition } from '$lib/utils/openingTranslation';
@@ -191,7 +191,6 @@
   let lastFloorBelowHash = '';
 
   const GRID = 20;
-  const SNAP = 10;
   const MAGNETIC_SNAP = 15;
   // Store subscriptions
   let currentFloor: Floor | null = $state(null);
@@ -343,9 +342,7 @@
   }
 
   function snap(v: number): number {
-    if (!currentSnapEnabled) return v;
-    const step = currentSnapToGrid ? currentGridSize : SNAP;
-    return Math.round(v / step) * step;
+    return _snap(v, currentSnapEnabled, currentSnapToGrid, currentGridSize);
   }
 
   function screenToWorld(sx: number, sy: number): Point {

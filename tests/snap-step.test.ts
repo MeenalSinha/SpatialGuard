@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { translate } from '$lib/i18n';
 import { SNAP, snap } from '$lib/utils/canvasInteraction';
@@ -18,6 +19,13 @@ describe('the status-bar snap step', () => {
     expect(snap(137, true, true, 25)).toBe(125);
     expect(snap(137, true, false, 25)).toBe(140);
     expect(snap(137, false, true, 25)).toBe(137);
+  });
+
+  it('is the rounding the plan canvas ships: the canvas calls this snap() and SNAP and keeps no copy', () => {
+    const canvas = readFileSync(new URL('../src/lib/components/editor/FloorPlanCanvas.svelte', import.meta.url), 'utf8');
+    expect(canvas).toMatch(/import \{[^}]*\bSNAP\b[^}]*\bsnap as _snap\b[^}]*\} from '\$lib\/utils\/canvasInteraction'/);
+    expect(canvas).toContain('return _snap(v, currentSnapEnabled, currentSnapToGrid, currentGridSize);');
+    expect(canvas).not.toMatch(/\bconst SNAP\b/);
   });
 
   for (const language of ['en', 'pt'] as const) {
