@@ -256,8 +256,9 @@ function detectSplitRooms(splitEdges: Edge[]): Room[] {
       if (signedArea <= 0) continue;
       const area = signedArea;
 
-      // Skip very large or tiny areas
-      if (area < 1000 || area > 10000000) continue;
+      // Skip slivers under 0.1 m² (1000 cm²). There is no upper bound: the
+      // outside face was already rejected by its sign, so a hall is a room too.
+      if (area < 1000) continue;
 
       // Compute centroid
       const cx = poly.reduce((s, p) => s + p.x, 0) / poly.length;

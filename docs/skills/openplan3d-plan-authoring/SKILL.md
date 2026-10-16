@@ -133,7 +133,7 @@ Rooms are never drawn directly; the editor **detects closed loops of wall centre
   wall yourself into collinear pieces that share the junction point; both are detected.
 - Each minimal enclosed face becomes a room whose `walls` lists the ids of every wall touching the loop (a split wall
   contributes its original id), with `area` in m² of the centreline polygon (two decimals; immediately nested rooms
-  are subtracted) and the name `Room n`. Faces under 0.1 m² or over 1000 m² and the outside face are ignored.
+  are subtracted) and the name `Room n`. Faces under 0.1 m² and the outside face are ignored; there is no maximum size.
 - Saved `rooms[]` records are **metadata keyed by wall-id set**: a detected loop takes the record whose `walls`
   contains the same ids (order irrelevant) and shows its `name`, `floorTexture`, `color`, `roomType`, `labelOffset`,
   `details` and `floorOpening`. A record that matches no loop stays in the file but shows nothing; two records with
@@ -331,7 +331,7 @@ Paths are JSON paths such as `floors[0].doors[1].wallId` or `doors[1].parentIden
 | Interchange: transform with 15 numbers, NaN, or zero ground direction | `Invalid RoomPlan file: walls[0].transform must be a finite 4×4 transform with a horizontal direction. No project was imported.` |
 | Interchange: web type names (`casement`, `french`) in `style` | `Invalid RoomPlan file: windows[0].style is not supported for this opening. No project was imported.` |
 | Interchange: `openplanHandoffVersion: 2` | `Invalid RoomPlan file: openplanHandoffVersion is not supported by this version of the editor. No project was imported.` |
-| Interchange: centimetre numbers in `dimensions` | valid file, 800 m walls: rooms over 1000 m² are not detected |
+| Interchange: centimetre numbers in `dimensions` | valid file: 800 m walls, 20 m thick, running hundreds of metres past every corner |
 | Unknown `catalogId` such as `couch` | accepted, drawn as a 50×50×50 "Unknown furniture" box; use `sofa` or `imported_object` + `sourceCategory` |
 
 ## 11. Delivering the file
