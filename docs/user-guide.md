@@ -546,6 +546,13 @@ copies** adds them without overwriting anything. At most the latest 10 valid
 versions per project are restored; damaged entries are kept as recovery data
 and included in future backups.
 
+**Restore library backup** also takes a single project saved with **Download
+JSON** (or **Download JSON backup** in the red save bar), for example
+`Our house.json` or a second download named `Our house(1).json`. That is the
+quickest way back if browser storage was cleared: choose the file, check that
+the preview lists the project, and choose **Restore as copies**; it comes back
+as "Our house (Restored copy)".
+
 ### Save problems
 
 If a save fails, a red bar reads "Changes are not saved." followed by the
@@ -642,7 +649,9 @@ view and try again to include it." It is not printed to a fixed scale; use
 
 - **Download JSON** — one project, everything the web editor knows, as plain
   text. Best for backups and for moving a project to another browser or
-  computer (**Import JSON**). Does not include version history.
+  computer: open it with **Import JSON** in the editor, **Import a Plan** on
+  the Welcome screen, or **Restore library backup** on the library page. Does
+  not include version history.
 - **Download project package** — one project as a ZIP for exchange with the
   OpenPlan3D iPhone app or another browser. It carries the plan, photos,
   custom models and any original iPhone data that was retained from an import,
@@ -1020,6 +1029,11 @@ Messages are quoted as the editor shows them.
   dataset or library backup." — You chose the wrong kind of file: library
   backups go to **Restore library backup**, RoomPlan ZIPs to **Import JSON** /
   **Import RoomPlan**.
+- "This is a RoomPlan scan or an interchange JSON file, not a backup. Open it
+  with Import JSON in the editor. No projects were restored." — **Restore
+  library backup** takes library backups and project files from **Download
+  JSON**; scans and `…-openplan3d.json` interchange files open with **Import
+  JSON**.
 - "The file must be a ZIP package under 64 MiB." / "Only regular, uncompressed
   package files are supported." / "Unsupported ZIP layout. Export a new project
   package from OpenPlan3D." — The package was re-zipped or edited by another
