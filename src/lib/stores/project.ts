@@ -12,7 +12,8 @@ import { getWallStartHeight, getWallEndHeight, getWallHeightAt, validWallHeight 
 import type { DetailTarget, ItemDetails } from '$lib/models/types';
 import { detailItem, itemDetails, validateItemDetails } from '$lib/utils/itemDetails';
 import { readProject } from '$lib/utils/projectValidation';
-import { mergeRoomPlanFloors, type AddedContent } from '$lib/utils/roomplanMerge';
+import { mergeRoomPlanFloors, selectableContentIds, type AddedContent } from '$lib/utils/roomplanMerge';
+import { doorJoin } from '$lib/utils/scanAlignment';
 
 
 function uid(): string {
@@ -54,6 +55,7 @@ export function activateMeasurementTool(tool: 'measure' | 'annotate') {
   placingColumn.set(false);
   placingEntourageId.set(null);
   calibrationMode.set(false);
+  doorJoinMode.set(null);
   elevationPickMode.set(false);
   selectedTool.set(tool);
 }
@@ -182,6 +184,7 @@ function reviveDates(p: Project): Project {
 function clearFloorContext() {
   calibrationMode.set(false);
   calibrationPoints.set([]);
+  doorJoinMode.set(null);
   selectedElementId.set(null);
   selectedElementIds.set(new Set());
   selectedRoomId.set(null);
@@ -986,6 +989,25 @@ export function selectImportedElements(floorId: string, ids: string[]) {
   if (p.activeFloorId !== floorId) setActiveFloor(floorId); else clearFloorContext();
   selectedElementIds.set(new Set(ids.length > 1 ? ids : []));
   selectedElementId.set(ids.length === 1 ? ids[0] : null);
+}
+
+/** Door-to-door scan alignment: the door picked first, until a second door is clicked or the mode is cancelled. */
+export const doorJoinMode = writable<{ firstDoorId: string } | null>(null);
+
+/**
+ * Carry the wall group holding `movingDoorId` onto the far side of `targetDoorId`'s wall
+ * (see utils/scanAlignment) as one history entry, then select what moved, which also ends
+ * the pick mode. False, with no history entry and the mode untouched, when the doors cannot
+ * be joined.
+ */
+export function joinScanDoors(movingDoorId: string, targetDoorId: string, gapCm?: number): boolean {
+  const p = get(currentProject);
+  const floor = p?.floors.find(f => f.id === p.activeFloorId);
+  const joined = floor ? doorJoin(floor, movingDoorId, targetDoorId, gapCm) : null;
+  if (!joined) return false;
+  mutate(f => { Object.assign(f, joined.floor); }, 'Joined doors');
+  selectImportedElements(floor!.id, selectableContentIds(joined.floor, joined.movedIds));
+  return true;
 }
 
 export const selectedRoomId = writable<string | null>(null);

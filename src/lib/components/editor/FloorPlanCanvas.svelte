@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t, locale } from '$lib/i18n';
+  import { connectedWallGroup } from '$lib/utils/scanAlignment';
   import { furnitureName, customModelName } from '$lib/i18n/furnitureNames';
   import { multiSelectionBounds } from '$lib/utils/multiSelectionBounds';
   import { onMount, onDestroy, tick } from 'svelte';
@@ -9,7 +10,7 @@
   import { planContentBounds, hasPlanContent } from '$lib/utils/planContentBounds';
   import { connectedWallEndpoints } from '$lib/utils/wallEditing';
   import { createDrawScheduler } from '$lib/utils/drawScheduler';
-  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, moveWallGeometryDuringDrag, updateDoor, updateWindow, addFurniture, moveFurniture, transformFurnitureDuringDrag, rotateFurniture, rotateSelection, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateSelection, pasteSelection, moveWallParallel, splitWall, wallSplitIntersectsOpening, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasMinimumZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, updateMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, toggleSelectionLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode } from '$lib/stores/project';
+  import { activeFloor, selectedTool, selectedElementId, selectedElementIds, selectedRoomId, addWall, addDoor, addWindow, updateWall, moveWallEndpoint, moveWallGeometryDuringDrag, updateDoor, updateWindow, addFurniture, moveFurniture, transformFurnitureDuringDrag, rotateFurniture, rotateSelection, setFurnitureRotation, scaleFurniture, removeElement, placingFurnitureId, placingRotation, placingDoorType, placingWindowType, detectedRoomsStore, duplicateDoor, duplicateWindow, duplicateFurniture, duplicateSelection, pasteSelection, moveWallParallel, splitWall, wallSplitIntersectsOpening, snapEnabled, placingStair, addStair, moveStair, updateStair, placingColumn, placingColumnShape, addColumn, moveColumn, updateColumn, calibrationMode, calibrationPoints, updateBackgroundImage, setBackgroundImage, canvasZoom, canvasMinimumZoom, canvasCamX, canvasCamY, panMode, showFurnitureStore, addGuide, moveGuide, removeGuide, beginUndoGroup, endUndoGroup, layerVisibility, updateRoom, addMeasurement, updateMeasurement, removeMeasurement, addAnnotation, removeAnnotation, updateAnnotation, addTextAnnotation, removeTextAnnotation, updateTextAnnotation, moveTextAnnotation, toggleFurnitureLock, toggleSelectionLock, createGroup, ungroupElements, findGroupForElement, placingEntourageId, addEntourageItem, moveEntourage, resizeEntourage, currentProject, elevationWallId, elevationPickMode, doorJoinMode, joinScanDoors } from '$lib/stores/project';
   import type { Point, Wall, Door, Window as Win, FurnitureItem, Stair, Column, GuideLine, Measurement, Annotation, TextAnnotation, CustomEntourageDef } from '$lib/models/types';
   import type { Floor, Room } from '$lib/models/types';
   import { resolveRoomGeometry, roomLabelPosition, roomCentroid } from '$lib/utils/roomDetection';
@@ -536,6 +537,24 @@
 
   function drawDoorOnWall(wall: Wall, door: Door) {
     _drawDoorOnWall(getCS(), wall, door);
+  }
+
+  /** Dashed box around an opening, turned with its wall: the selection mark, or the door picked for a scan join. */
+  function drawOpeningBox(wall: Wall, opening: Door | Win, color: string) {
+    const wpt = wallPointAt(wall, opening.position);
+    const sp = worldToScreen(wpt.x, wpt.y);
+    const hw = (opening.width / 2) * zoom + 4;
+    const hh = (wall.thickness / 2) * zoom + 8;
+    const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
+    ctx.save();
+    ctx.translate(sp.x, sp.y);
+    ctx.rotate(angle);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 3]);
+    ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
+    ctx.setLineDash([]);
+    ctx.restore();
   }
 
   function drawWindowOnWall(wall: Wall, win: Win) {
@@ -1169,24 +1188,9 @@
         const wall = floor.walls.find((w) => w.id === d.wallId);
         if (wall) {
           drawDoorOnWall(wall, d);
-          if (isSelected(d.id)) {
-            // Selection highlight box
-            const t = d.position;
-            const wpt = wallPointAt(wall, t);
-            const sp = worldToScreen(wpt.x, wpt.y);
-            const hw = (d.width / 2) * zoom + 4;
-            const hh = (wall.thickness / 2) * zoom + 8;
-            const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
-            ctx.save();
-            ctx.translate(sp.x, sp.y);
-            ctx.rotate(angle);
-            ctx.strokeStyle = '#3b82f6';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([4, 3]);
-            ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
-            ctx.setLineDash([]);
-            ctx.restore();
-          }
+          if (isSelected(d.id)) drawOpeningBox(wall, d, '#3b82f6');
+          // The door picked first for a scan join stays marked until the second click or Esc.
+          if (joinMode?.firstDoorId === d.id) drawOpeningBox(wall, d, '#d97706');
           if (showDimensions && isSelected(d.id)) drawDoorDistanceDimensions(wall, d);
         }
       }
@@ -1196,23 +1200,7 @@
         const wall = floor.walls.find((w) => w.id === win.wallId);
         if (wall) {
           drawWindowOnWall(wall, win);
-          if (isSelected(win.id)) {
-            const t = win.position;
-            const wpt = wallPointAt(wall, t);
-            const sp = worldToScreen(wpt.x, wpt.y);
-            const hw = (win.width / 2) * zoom + 4;
-            const hh = (wall.thickness / 2) * zoom + 8;
-            const angle = Math.atan2(wall.end.y - wall.start.y, wall.end.x - wall.start.x);
-            ctx.save();
-            ctx.translate(sp.x, sp.y);
-            ctx.rotate(angle);
-            ctx.strokeStyle = '#3b82f6';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([4, 3]);
-            ctx.strokeRect(-hw, -hh, hw * 2, hh * 2);
-            ctx.setLineDash([]);
-            ctx.restore();
-          }
+          if (isSelected(win.id)) drawOpeningBox(wall, win, '#3b82f6');
           if (showDimensions && isSelected(win.id)) drawWindowDistanceDimensions(wall, win);
         }
       }
@@ -1762,6 +1750,9 @@
   let elevationOpen = $state(false);
   /** Armed via the Elevation segment with no wall selected: next wall click opens its elevation */
   let pickingElevation = $state(false);
+  /** Scan door join (issue #103): the door picked first, while the second click is awaited. */
+  let joinMode: { firstDoorId: string } | null = $state(null);
+  let joinHint: 'doorJoin.hint' | 'doorJoin.sameRoom' = $state('doorJoin.hint');
 
   onMount(() => {
     ctx = canvas.getContext('2d')!;
@@ -1828,6 +1819,7 @@
     const unsub6 = selectedTool.subscribe((t) => {
       if (t !== currentTool) {
         finishCanvasGesture();
+        if (joinMode) doorJoinMode.set(null);
         measureStart = null;
         measureEnd = null;
         annotationStart = null;
@@ -1878,6 +1870,7 @@
     const unsub_multi = selectedElementIds.subscribe((ids) => { currentSelectedIds = ids; markDirty(); });
     const unsub_elevopen = elevationWallId.subscribe((id) => { elevationOpen = !!id; markDirty(); });
     const unsub_elevpick = elevationPickMode.subscribe((v) => { pickingElevation = v; markDirty(); });
+    const unsub_join = doorJoinMode.subscribe((v) => { joinMode = v; joinHint = 'doorJoin.hint'; markDirty(); });
     let backgroundSource: string | undefined;
     const unsub14 = activeFloor.subscribe((f) => {
       const source = f?.backgroundImage?.dataUrl;
@@ -1937,7 +1930,7 @@
     canvas.addEventListener('touchend', onTouchEnd, { passive: false });
     canvas.addEventListener('touchcancel', onTouchEnd, { passive: false });
 
-    return () => { mounted = false; drawing?.stop(); stopTextures(); resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub_elevopen(); unsub_elevpick(); unsub14(); unsub_col(); unsub_cols(); unsub_layers(); unsub_snapgrid(); unsubEnt1(); unsubEnt2(); document.removeEventListener('paste', handlePaste); canvas.removeEventListener('touchstart', onTouchStart); canvas.removeEventListener('touchmove', onTouchMove); canvas.removeEventListener('touchend', onTouchEnd); canvas.removeEventListener('touchcancel', onTouchEnd); };
+    return () => { mounted = false; drawing?.stop(); stopTextures(); resizeObs.disconnect(); unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); unsub6(); unsub7(); unsub8(); unsub9(); unsub10(); unsub11(); unsub12(); unsub13(); unsub_multi(); unsub_elevopen(); unsub_elevpick(); unsub_join(); unsub14(); unsub_col(); unsub_cols(); unsub_layers(); unsub_snapgrid(); unsubEnt1(); unsubEnt2(); document.removeEventListener('paste', handlePaste); canvas.removeEventListener('touchstart', onTouchStart); canvas.removeEventListener('touchmove', onTouchMove); canvas.removeEventListener('touchend', onTouchEnd); canvas.removeEventListener('touchcancel', onTouchEnd); };
   });
 
   /** Compute world bounding box of all elements */
@@ -2256,6 +2249,21 @@
         selectedElementIds.set(new Set());
         selectedRoomId.set(null);
         elevationWallId.set(wall.id);
+      }
+      return;
+    }
+
+    // Scan door join: the next door clicked receives the wall group of the door
+    // picked first; any other click keeps the mode and Esc ends it. The click is
+    // consumed so the selection stays as it is. A first door the floor no longer
+    // has (undone, deleted) ends the mode instead.
+    if (joinMode && !currentFloor?.doors.some(d => d.id === joinMode!.firstDoorId)) doorJoinMode.set(null);
+    if (joinMode) {
+      const door = findDoorAt(wp);
+      if (door && door.id !== joinMode.firstDoorId && !joinScanDoors(joinMode.firstDoorId, door.id) && currentFloor) {
+        const first = currentFloor.doors.find(d => d.id === joinMode!.firstDoorId);
+        joinHint = first && connectedWallGroup(currentFloor.walls, first.wallId).has(door.wallId) ? 'doorJoin.sameRoom' : 'doorJoin.hint';
+        markDirty();
       }
       return;
     }
@@ -3448,6 +3456,7 @@
       splitBlocked = false;
       calibrationMode.set(false);
       calibrationPoints.set([]);
+      doorJoinMode.set(null);
       finishCanvasGesture();
       clearAuxiliarySelection();
       selectedRoomId.set(null);
@@ -3891,6 +3900,11 @@
         }
         break;
 
+      // Door actions
+      case 'join-door':
+        if (id) doorJoinMode.set({ firstDoorId: id });
+        break;
+
       // Shared actions
       case 'delete':
         if (id) { removeElement(id); selectedElementId.set(null); }
@@ -3961,6 +3975,13 @@
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9H3z"/><rect x="10" y="14" width="4" height="6"/><rect x="5.5" y="13" width="3" height="3"/></svg>
       <span class="max-md:hidden">{$t('canvasHints.pick')}</span>
       <span class="md:hidden">{$t('canvasHints.pickTouch')}</span>
+    </div>
+  {/if}
+  <!-- Scan door-join hint chip: shows while the second door is awaited -->
+  {#if joinMode && !pickingElevation}
+    <div role="status" class="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-slate-800/90 text-white text-xs font-medium px-3.5 py-1.5 rounded-full shadow-lg pointer-events-none flex items-center gap-1.5">
+      <span aria-hidden="true">🚪</span>
+      <span>{$t(joinHint)}</span>
     </div>
   {/if}
   <!-- Inline room name editor -->
