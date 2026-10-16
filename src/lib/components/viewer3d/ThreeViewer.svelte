@@ -35,7 +35,7 @@
   import { createWallHighlight } from '$lib/utils/wallHighlight';
   import { applyWallXray } from '$lib/utils/wallXray';
   import { disposeModel } from '$lib/utils/furnitureModelResources';
-  import { ownColorCanvasTexture } from '$lib/utils/viewerTextures';
+  import { ownColorCanvasTexture, refreshBackgroundTexture } from '$lib/utils/viewerTextures';
   import { createFurnitureModelWithGLB, createPlacedFurnitureModel } from '$lib/utils/furnitureModelLoader';
   import { addFurniture } from '$lib/stores/project';
   import { detectRooms, resolveRoomGeometry, getRoomPolygon, roomCentroid, roomLabelPosition } from '$lib/utils/roomDetection';
@@ -574,7 +574,7 @@
     grad.addColorStop(1.0, '#b8b0a0');
     cx.fillStyle = grad;
     cx.fillRect(0, 0, 4, 512);
-    skyTexture.needsUpdate = true;
+    refreshBackgroundTexture(skyTexture);
   }
 
   function applyTimePreset(preset: 'morning' | 'noon' | 'evening' | 'night') {
@@ -597,6 +597,8 @@
     if (fillLight) fillLight.intensity = preset === 'night' ? 0.05 : 0.4;
     if (rimLight) rimLight.intensity = preset === 'night' ? 0.05 : 0.25;
     updateSkyGradient(p.skyTop, p.skyMid, p.skyHorizon);
+    // The main view redraws for the new lights; an open interior preview redraws only when asked.
+    if (cameraPlaced) cameraPreviewDirty = true;
   }
 
   const WALL_THICKNESS = 15;

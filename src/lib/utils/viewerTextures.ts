@@ -10,3 +10,13 @@ export function ownColorCanvasTexture(canvas: HTMLCanvasElement): THREE.CanvasTe
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
+
+/** Shows a redrawn canvas behind an equirectangular scene background, such as the sky.
+ * Each renderer converts that background into a cube map once and keeps reusing the cube
+ * while the texture lives, whatever needsUpdate says. Disposing the texture drops every
+ * renderer's cube, so each converts the new canvas on its next frame; the texture stays
+ * in use and is uploaded again. */
+export function refreshBackgroundTexture(texture: THREE.Texture) {
+  texture.needsUpdate = true;
+  texture.dispose();
+}
