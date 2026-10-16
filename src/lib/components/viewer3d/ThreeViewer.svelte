@@ -18,7 +18,7 @@
   import * as THREE from 'three';
   import { createRoomSlabGeometry } from '$lib/utils/roomSlabGeometry';
   import { roomHoles } from '$lib/utils/roomNesting';
-  import { createSlopedBoxGeometry } from '$lib/utils/slopedWallGeometry';
+  import { createSlopedBoxGeometry, mapWallUVs } from '$lib/utils/slopedWallGeometry';
   import { buildWallSegments, roomCeilingHeight, wallProfileSpans, wallPathProfile, pathOpening, doorPanelPose } from '$lib/utils/wallProfiles';
   import { assembleFloorStack } from '$lib/utils/floorStack';
   import { setFloorCameraPose } from '$lib/utils/floorCamera';
@@ -1008,8 +1008,8 @@
     controls.update();
   }
 
-  /** Generate a wall texture. wallWidth/wallHeight in cm to set proper tiling. */
-  function generateWallTexture(textureId: string, color: string, wallWidth: number = 300, wallHeight: number = 280): THREE.CanvasTexture {
+  /** Generate a wall texture. Wall UVs already count 200 cm tiles (mapWallUVs), so it sets no repeat. */
+  function generateWallTexture(textureId: string, color: string): THREE.CanvasTexture {
     const canvas = getWallTextureCanvas(textureId, color);
     if (!canvas) {
       const c = document.createElement('canvas');
@@ -1023,9 +1023,6 @@
     }
     const tex = ownColorCanvasTexture(canvas);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    // Each texture tile covers ~200cm of real wall
-    const tileSizeCm = 200;
-    tex.repeat.set(wallWidth / tileSizeCm, wallHeight / tileSizeCm);
     return tex;
   }
 
@@ -1207,12 +1204,11 @@
     for (const wall of floor.walls) {
       // Resolve per-side materials: interior and exterior can have independent color/texture
       const DEFAULT_2D_COLORS = ['#cccccc', '#888888', '#444444', '#404040'];
-      const wLen = Math.hypot(wall.end.x - wall.start.x, wall.end.y - wall.start.y);
 
       function resolveWallMat(color: string | undefined, texture: string | undefined, fallback: THREE.MeshStandardMaterial, isInterior: boolean = false): THREE.MeshStandardMaterial {
         const polyOff = isInterior ? { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 } : {};
         if (texture) {
-          const tex = generateWallTexture(texture, color || '#888888', wLen, wall.height);
+          const tex = generateWallTexture(texture, color || '#888888');
           return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85, ...polyOff });
         }
         if (color && !DEFAULT_2D_COLORS.includes(color.toLowerCase())) {
@@ -1236,7 +1232,7 @@
       if (extTex || wall.exteriorColor) {
         exteriorMat = resolveWallMat(wall.exteriorColor, extTex, defaultExteriorMat);
       } else if (wall.texture) {
-        const extTex = generateWallTexture(wall.texture, wall.color || '#888888', wLen, wall.height);
+        const extTex = generateWallTexture(wall.texture, wall.color || '#888888');
         exteriorMat = new THREE.MeshStandardMaterial({ map: extTex, roughness: 0.85 });
       } else if (wall.color && !DEFAULT_2D_COLORS.includes(wall.color.toLowerCase())) {
         const c = new THREE.Color(wall.color).offsetHSL(0, -0.05, -0.1);
@@ -1260,7 +1256,7 @@
         for (const span of wallProfileSpans(wall, doors, windows)) {
           const angle = Math.atan2(span.end.y - span.start.y, span.end.x - span.start.x);
           for (const segment of span.segments) {
-            const geo = createSlopedBoxGeometry(segment.width, t, segment.bottomY, segment.topYLeft, segment.topYRight);
+            const geo = mapWallUVs(createSlopedBoxGeometry(segment.width, t, segment.bottomY, segment.topYLeft, segment.topYRight), span.from + segment.offsetX);
             const mesh = new THREE.Mesh(geo, materials);
             mesh.castShadow = true; mesh.receiveShadow = true;
             mesh.position.set(span.start.x + segment.offsetX * Math.cos(angle), 0, span.start.y + segment.offsetX * Math.sin(angle));
@@ -1298,7 +1294,7 @@
         const segments = buildWallSegments(len, startH, endH, doorOpenings, winOpenings);
 
         for (const seg of segments) {
-          const geo = createSlopedBoxGeometry(seg.width, t, seg.bottomY, seg.topYLeft, seg.topYRight);
+          const geo = mapWallUVs(createSlopedBoxGeometry(seg.width, t, seg.bottomY, seg.topYLeft, seg.topYRight), seg.offsetX);
 
           // Create a multi-material wall: interior white, exterior brown
           const materials = [
