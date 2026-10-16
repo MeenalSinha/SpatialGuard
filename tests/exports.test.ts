@@ -1,6 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest';
+import { get } from 'svelte/store';
 import { exportAsSVG, exportAsPNG, exportPDF } from '$lib/utils/export';
 import { exportDXF, exportDWG } from '$lib/utils/cadExport';
+import { exportNotice, exportDXFWithFeedback, exportDWGWithFeedback } from '$lib/stores/exportNotice';
 import { placeCustomModel } from '$lib/services/customModels';
 import { resolveRooms } from '$lib/utils/roomDetection';
 import { benchmarkProject } from './fixtures/render-benchmark';
@@ -94,7 +96,7 @@ it('exports DWG as a DXF download and reports whether anything was written', asy
   expect(downloaded[0].type).toBe('application/dxf');
   expect(await downloaded[0].text()).toContain('Kitchen & Dining <East>');
   const empty = namedProject(); empty.floors[0].walls = [];
-  expect(exportDWG(empty)).toBe(false);
+  expect(exportDWG(empty)).toBe('empty');
   expect(downloaded).toHaveLength(1);
 });
 
@@ -234,10 +236,38 @@ it('does not capture a viewport for an empty project floor', async () => {
 it('reports whether an SVG or DXF was downloaded so the editor can explain an empty floor', () => {
  expect(exportAsSVG(namedProject())).toBe(true); expect(downloaded).toHaveLength(1);
  const empty = namedProject(); empty.floors[0].walls = [];
- expect(exportAsSVG(empty)).toBe(false); expect(exportDXF(empty)).toBe(false);
+ expect(exportAsSVG(empty)).toBe(false); expect(exportDXF(empty)).toBe('empty');
  const floorless = namedProject(); floorless.floors = [];
- expect(exportAsSVG(floorless)).toBe(false); expect(exportDXF(floorless)).toBe(false);
+ expect(exportAsSVG(floorless)).toBe(false); expect(exportDXF(floorless)).toBe('empty');
  expect(downloaded).toHaveLength(1);
+});
+
+it('tells an empty floor from one holding only entourage CAD cannot draw, which SVG still exports', () => {
+  const project = roomProject(), floor = project.floors[0];
+  floor.walls = [];
+  project.customEntourage = [{ id: 'photo', name: 'Photo', dataUrl: 'data:image/png;base64,AAAA', aspect: 1 }];
+  const item = { position: { x: 0, y: 0 }, width: 100, rotation: 0 };
+  for (const entourage of [[{ ...item, id: 'upload', defId: 'photo' }], [{ ...item, id: 'clear', defId: 'person', opacity: 0 }]]) {
+    floor.entourage = entourage;
+    expect(exportDXF(project)).toBe('unsupported');
+    expect(exportDWG(project)).toBe('unsupported');
+    expect(downloaded).toHaveLength(0);
+    exportDXFWithFeedback(project);
+    expect(get(exportNotice)).toEqual({ title: 'exportNotice.dxfTitle', message: 'exportNotice.dxfUnsupported' });
+    exportDWGWithFeedback(project);
+    expect(get(exportNotice)).toEqual({ title: 'exportNotice.dwgErrorTitle', message: 'exportNotice.dwgUnsupported' });
+    expect(exportAsSVG(project)).toBe(true);
+    expect(downloaded.splice(0).map(blob => blob.type)).toEqual(['image/svg+xml']);
+  }
+  // Entourage no export can draw leaves the floor empty; a faint built-in symbol is CAD linework.
+  floor.entourage = [{ ...item, id: 'missing', defId: 'unknown' }];
+  expect(exportDXF(project)).toBe('empty');
+  exportDWGWithFeedback(project);
+  expect(get(exportNotice)?.message).toBe('exportNotice.dwgEmpty');
+  floor.entourage = [{ ...item, id: 'faint', defId: 'person', opacity: 0.25 }];
+  exportDWGWithFeedback(project);
+  expect(get(exportNotice)?.message).toBe('exportNotice.dwgFallback');
+  expect(downloaded.map(blob => blob.type)).toEqual(['application/dxf']);
 });
 
 it('frames an oversized rotated furniture symbol consistently in PNG and PDF', async()=>{

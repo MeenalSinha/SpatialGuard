@@ -44,10 +44,21 @@ const LAYER_COLORS = {
 /** Plan (screen) radians to DXF degrees in [0, 360). */
 const cadDegrees = (radians: number) => ((radians * 180 / Math.PI) % 360 + 360) % 360;
 
-/** Returns whether a file was downloaded (an empty floor exports nothing). */
-export function exportDXF(project: Project, language: Locale = 'en'): boolean {
+/** What a CAD export did: true once the file is downloaded, otherwise why nothing was written. */
+export type CadExportResult = true | 'empty' | 'unsupported';
+
+/**
+ * Returns true once a file is downloaded. Otherwise nothing is written: 'empty' when the active
+ * floor has nothing to export, 'unsupported' when its only content is uploaded entourage images or
+ * entourage at 0% opacity, which the SVG, PNG and PDF exports draw but CAD linework cannot.
+ */
+export function exportDXF(project: Project, language: Locale = 'en'): CadExportResult {
   const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
-  if (!floor || !hasPlanExportContent(floor) && !(floor.entourage ?? []).some(e=>getEntourageDef(e.defId) && e.opacity!==0)) return false;
+  if (!floor) return 'empty';
+  const entourage = floor.entourage ?? [];
+  if (!hasPlanExportContent(floor) && !entourage.some(e=>getEntourageDef(e.defId) && e.opacity!==0)) {
+    return entourage.some(e=>getEntourageDef(e.defId) || project.customEntourage?.some(def=>def.id===e.defId)) ? 'unsupported' : 'empty';
+  }
 
   const d = new Drawing();
   d.setUnits('Centimeters');
@@ -231,9 +242,9 @@ export function exportDXF(project: Project, language: Locale = 'en'): boolean {
 
 /**
  * DWG is a proprietary binary format with no JS writer, so the DXF (which AutoCAD,
- * SketchUp and FreeCAD open directly) is downloaded instead. Returns whether a file
- * was downloaded; the caller tells the user about the substitution.
+ * SketchUp and FreeCAD open directly) is downloaded instead. Returns what exportDXF
+ * returns; the caller tells the user about the substitution.
  */
-export function exportDWG(project: Project, language: Locale = 'en'): boolean {
+export function exportDWG(project: Project, language: Locale = 'en'): CadExportResult {
   return exportDXF(project, language);
 }

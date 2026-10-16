@@ -556,6 +556,13 @@ measurements to the active floor before exporting a PNG" (or "… an SVG", "… 
 DXF", "… a DWG", "… a PDF"). Hidden layers and hidden furniture are still
 exported.
 
+DXF and DWG files hold CAD linework only, so they leave out uploaded entourage
+symbols and entourage at 0% opacity, which the SVG, PNG and PDF exports
+include. When those are all the active floor holds, Export as DXF and Export as
+DWG download nothing and say "A DXF can't include uploaded entourage symbols or
+entourage at 0% opacity, and the active floor has nothing else to export.
+Export as SVG, PNG or PDF instead." (or "A DWG …").
+
 ### Printing to scale (Print Layout)
 
 **Export → Print Layout** (or Ctrl+P) opens **Print Preview**:
@@ -984,6 +991,10 @@ Messages are quoted as the editor shows them.
 - "Couldn't export PDF" / "Couldn't export 2D PNG" with "Add walls, furniture,
   stairs, columns, entourage, notes or measurements to the active floor …" —
   The active floor is empty; switch floors.
+- "Couldn't export DXF" / "Couldn't export DWG" with "A DXF can't include
+  uploaded entourage symbols or entourage at 0% opacity …" — Those are all the
+  active floor holds. Use Export as SVG, Export 2D as PNG or Export as PDF, or
+  raise the symbol's opacity above 0%.
 - "PDF exported without the 3D view" — Open the 3D view, then export again.
 - "The 3D view could not be captured. Reopen the 3D view and try again." —
   The 3D canvas was not ready (or WebGL was lost); open 3D, wait, retry.

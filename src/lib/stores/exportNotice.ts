@@ -45,10 +45,12 @@ export function exportSVGWithFeedback(project: Project, language: Locale = 'en')
   }
 }
 
+/** CAD exports also say when the floor's only content is entourage they cannot draw, rather than asking for content. */
 export function exportDXFWithFeedback(project: Project, language: Locale = 'en') {
   exportNotice.set(null);
   try {
-    if (!exportDXF(project, language)) exportNotice.set({ title: 'exportNotice.dxfTitle', message: 'exportNotice.dxfEmpty' });
+    const result = exportDXF(project, language);
+    if (result !== true) exportNotice.set({ title: 'exportNotice.dxfTitle', message: result === 'unsupported' ? 'exportNotice.dxfUnsupported' : 'exportNotice.dxfEmpty' });
   } catch {
     exportNotice.set({ title: 'exportNotice.dxfTitle', message: 'exportNotice.dxfFailed' });
   }
@@ -58,9 +60,10 @@ export function exportDXFWithFeedback(project: Project, language: Locale = 'en')
 export function exportDWGWithFeedback(project: Project, language: Locale = 'en') {
   exportNotice.set(null);
   try {
-    exportNotice.set(exportDWG(project, language)
+    const result = exportDWG(project, language);
+    exportNotice.set(result === true
       ? { title: 'exportNotice.dwgTitle', message: 'exportNotice.dwgFallback' }
-      : { title: 'exportNotice.dwgErrorTitle', message: 'exportNotice.dwgEmpty' });
+      : { title: 'exportNotice.dwgErrorTitle', message: result === 'unsupported' ? 'exportNotice.dwgUnsupported' : 'exportNotice.dwgEmpty' });
   } catch {
     exportNotice.set({ title: 'exportNotice.dwgErrorTitle', message: 'exportNotice.dwgFailed' });
   }
