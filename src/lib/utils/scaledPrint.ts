@@ -8,19 +8,42 @@ import { resolveRooms } from './roomDetection';
 import { drawRooms, drawDoorOnWall, drawWindowOnWall, drawFurnitureItem, drawStair, drawColumn, drawAnnotations, drawPersistedMeasurements, drawTextAnnotations, drawEntourageItems } from './canvasRenderer';
 import { worldToScreen, type CanvasState } from './canvasInteraction';
 import { activePrintFloor, printBounds, calculatePrintLayout, type PrintOptions } from './printLayout';
+import { furnitureCaptionBounds } from './furnitureCaption';
 
 const PIXELS_PER_MM = 6;
 
-/** Preview and PDF use the same fixed physical page, independent of screen size/DPR. */
-export function renderPrintPage(canvas: HTMLCanvasElement, project: Project, options: PrintOptions, language: Locale = 'en') {
+/**
+ * The sheet layout, with room for furniture captions. They are drawn at a fixed size on paper, so
+ * their extent in plan centimetres grows as the scale shrinks; 'fit' settles it in a few passes.
+ */
+function sheetLayout(project: Project, options: PrintOptions, ctx: CanvasRenderingContext2D | null) {
   const floor = activePrintFloor(project);
   const bounds = floor && printBounds(floor, project.customEntourage);
   if (!bounds) return null;
-  const layout = calculatePrintLayout(bounds, options);
+  let layout = calculatePrintLayout(bounds, options);
+  for (let pass = 0; ctx && pass < 8; pass++) {
+    for (const item of floor.furniture) {
+      const b = furnitureCaptionBounds(item, customModelName(item, project), ctx, layout.mmPerCm * PIXELS_PER_MM);
+      if (!b) continue;
+      bounds.minX = Math.min(bounds.minX, b.minX); bounds.minY = Math.min(bounds.minY, b.minY);
+      bounds.maxX = Math.max(bounds.maxX, b.maxX); bounds.maxY = Math.max(bounds.maxY, b.maxY);
+    }
+    const next = calculatePrintLayout(bounds, options), settled = next.mmPerCm >= layout.mmPerCm * (1 - 1e-9);
+    layout = next;
+    if (settled) break;
+  }
+  return { floor, layout };
+}
+
+/** Preview and PDF use the same fixed physical page, independent of screen size/DPR. */
+export function renderPrintPage(canvas: HTMLCanvasElement, project: Project, options: PrintOptions, language: Locale = 'en') {
+  const ctx = canvas.getContext('2d')!;
+  const sheet = sheetLayout(project, options, ctx);
+  if (!sheet) return null;
+  const { floor, layout } = sheet;
   const { pageWidth, pageHeight, area, center, mmPerCm } = layout;
   canvas.width = Math.round(pageWidth * PIXELS_PER_MM);
   canvas.height = Math.round(pageHeight * PIXELS_PER_MM);
-  const ctx = canvas.getContext('2d')!;
   // Separate axes compensate for pixel rounding on Letter pages.
   const px = canvas.width / pageWidth, py = canvas.height / pageHeight;
   ctx.scale(px, py);
@@ -80,9 +103,9 @@ export function renderPrintPage(canvas: HTMLCanvasElement, project: Project, opt
 }
 
 export function createPrintPDF(canvas: HTMLCanvasElement, project: Project, options: PrintOptions, language: Locale = 'en') {
-  const floor = activePrintFloor(project), bounds = floor && printBounds(floor, project.customEntourage);
-  if (!bounds) throw new Error(translate(language, 'print.empty'));
-  const layout = calculatePrintLayout(bounds, options);
+  const sheet = sheetLayout(project, options, canvas.getContext('2d'));
+  if (!sheet) throw new Error(translate(language, 'print.empty'));
+  const { floor, layout } = sheet;
   if (!layout.fits) throw new Error(translate(language, 'print.pdfOverflow'));
   const pdf = new jsPDF({ unit: 'mm', format: options.pageSize, orientation: options.orientation });
   pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, layout.pageWidth, layout.pageHeight);

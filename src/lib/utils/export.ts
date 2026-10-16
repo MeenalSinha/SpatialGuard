@@ -12,12 +12,13 @@ import { textAnnotationBounds, textAnnotationLines } from './textAnnotationLayou
 import { canvasSymbolSvg } from './canvasSymbolSvg';
 import { furnitureSvg } from './furnitureSvg';
 import { furniturePlanBounds } from './furniturePlanBounds';
+import { furnitureCaptionBounds, furnitureCaptionLayout } from './furnitureCaption';
 import { canvasPNG } from './canvasPNG';
 import { doorSymbol } from './doorSymbol';
 import { planOpening } from './planOpening';
 import { wallPlanBounds } from './wallPlanGeometry';
 import { wallDimensionLabel } from './wallDimensionLabel';
-import type { Project, Floor } from '$lib/models/types';
+import type { Project, Floor, FurnitureItem } from '$lib/models/types';
 import { getCatalogItem, getFurnitureSize } from '$lib/utils/furnitureCatalog';
 import { resolveRooms, getRoomPolygon, roomLabelPosition } from '$lib/utils/roomDetection';
 import { drawStair, drawFurnitureItem, drawColumn, drawDoorOnWall, drawWindowOnWall, drawEntourageItems, drawTextAnnotations, drawAnnotations, drawPersistedMeasurements } from '$lib/utils/canvasRenderer';
@@ -144,6 +145,18 @@ function extendBoundsForText(floor: Floor, bounds: { minX: number; minY: number;
   }
 }
 
+/** Furniture captions can be far wider than their symbol; `caption` is what the writer is given for each item. */
+function extendBoundsForFurnitureCaptions(floor: Floor, bounds: { minX: number; minY: number; maxX: number; maxY: number }, caption: (item: FurnitureItem) => string | undefined) {
+  const ctx = document.createElement('canvas').getContext('2d');
+  if (!ctx) return;
+  for (const item of floor.furniture) {
+    const b = furnitureCaptionBounds(item, caption(item), ctx);
+    if (!b) continue;
+    bounds.minX = Math.min(bounds.minX, b.minX); bounds.minY = Math.min(bounds.minY, b.minY);
+    bounds.maxX = Math.max(bounds.maxX, b.maxX); bounds.maxY = Math.max(bounds.maxY, b.maxY);
+  }
+}
+
 /**
  * Draw all doors and windows onto an export canvas using the shared
  * full-fidelity renderer. The CanvasState below maps world→canvas as
@@ -218,6 +231,7 @@ export async function exportAsPNG(canvas: HTMLCanvasElement | null, project?: Pr
       extendBoundsForText(floor, bounds);
       extendBoundsForDimensions(floor, bounds);
       extendBoundsForMeasurements(floor, bounds);
+      extendBoundsForFurnitureCaptions(floor, bounds, item => customModelName(item, snapshot));
       ({ minX, minY, maxX, maxY } = bounds);
       const pad = 80;
       const w = maxX - minX + pad * 2;
@@ -328,6 +342,8 @@ export function exportAsSVG(project: Project, language: Locale = 'en'): boolean 
     return def || custom ? [{item,def,custom,aspect:def?.aspect ?? custom!.aspect}] : [];
   });
   if (!hasPlanExportContent(floor) && !entourage.length) return false;
+  // Catalog captions follow the export language, so the frame measures the same strings.
+  const caption = (item: FurnitureItem) => customModelName(item, project) ?? (getCatalogItem(item.catalogId) ? furnitureName(item.catalogId, language) : 'Unknown furniture');
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const w of floor.walls) {
@@ -354,6 +370,7 @@ export function exportAsSVG(project: Project, language: Locale = 'en'): boolean 
   extendBoundsForText(floor, svgBounds);
   extendBoundsForDimensions(floor, svgBounds);
   extendBoundsForMeasurements(floor, svgBounds);
+  extendBoundsForFurnitureCaptions(floor, svgBounds, caption);
   ({ minX, minY, maxX, maxY } = svgBounds);
   const pad = 50;
   const vw = maxX - minX + pad * 2;
@@ -506,8 +523,8 @@ export function exportAsSVG(project: Project, language: Locale = 'en'): boolean 
     const color=fi.color ?? cat?.color ?? '#888888';
     paths+=`  <g data-furniture="${escapeXml(fi.id)}" data-width="${fw}" data-depth="${fd}" transform="translate(${fx},${fy}) rotate(${fi.rotation || 0})">\n`;
     paths+=`<g transform="scale(${Math.sign(fi.scale?.x ?? 1)||1},${Math.sign(fi.scale?.y ?? 1)||1})">${furnitureSvg(fi.catalogId,fw,fd,color)}</g>\n`;
-    const fontSize=Math.max(8,Math.min(12,Math.min(fw,fd)*0.2));
-    if(Math.min(fw,fd)>20) paths+=`<text x="0" y="${fd/2+fontSize*0.8}" text-anchor="middle" dominant-baseline="central" font-size="${fontSize*0.7}" fill="#374151" font-family="sans-serif">${escapeXml(customModelName(fi, project) ?? (cat ? furnitureName(fi.catalogId, language) : 'Unknown furniture'))}</text>\n`;
+    const label=furnitureCaptionLayout(fi);
+    if(label) paths+=`<text x="0" y="${label.y}" text-anchor="middle" dominant-baseline="central" font-size="${label.size}" fill="#374151" font-family="sans-serif">${escapeXml(caption(fi))}</text>\n`;
     paths+='  </g>\n';
   }
 
@@ -711,6 +728,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   extendBoundsForText(floor, pdfBounds);
   extendBoundsForDimensions(floor, pdfBounds);
   extendBoundsForMeasurements(floor, pdfBounds);
+  extendBoundsForFurnitureCaptions(floor, pdfBounds, item => customModelName(item, project));
   ({ minX, minY, maxX, maxY } = pdfBounds);
 
   const pad = 80;

@@ -392,6 +392,37 @@ it('labels placed custom models with their saved name in SVG, DXF, PNG and PDF, 
   expect(project).toEqual(before);
 });
 
+it('frames a long custom-model caption in SVG, PNG and PDF instead of clipping it at the edge', async () => {
+  // Text advance in proportion to length and font size, as in a monospaced font.
+  let font = '10px sans-serif';
+  const context = new Proxy({ measureText: (text: string) => ({ width: text.length * Number(/([\d.]+)px/.exec(font)![1]) * 0.5 }) }, {
+    get: (target, key) => key === 'font' ? font : target[key as keyof typeof target] ?? (() => {}),
+    set: (_, key, value) => { if (key === 'font') font = value; return true; },
+  });
+  canvas.getContext = (() => context) as never;
+  const source = roomProject();
+  source.floors[0].walls = [];
+  const name = 'Mid-century walnut sideboard with brass handles (living room)';
+  source.customModels = [{ id: 'sideboard', name, assetName: 'sideboard.glb', sourceFilename: `${name}.glb`,
+    sha256: 'b'.repeat(64), byteLength: 20, width: 60, depth: 60, height: 80 }];
+  const project = placeCustomModel(source, 'sideboard', { x: 100, y: 200 });
+  // A 60 cm symbol takes the largest caption font, 0.7 × 12 units, so the name is far wider than the symbol.
+  const ink = name.length * 12 * 0.7 * 0.5;
+  exportAsSVG(project);
+  const svg = await downloaded.at(-1)!.text();
+  const width = Number(/viewBox="0 0 ([\d.]+) /.exec(svg)![1]);
+  const x = Number(/data-width="60" data-depth="60" transform="translate\(([\d.]+),/.exec(svg)![1]);
+  expect(svg).toContain(`>${name}</text>`);
+  // The caption keeps the SVG's 50-unit margin on both sides.
+  expect(x - ink / 2).toBeCloseTo(50);
+  expect(width - x - ink / 2).toBeCloseTo(50);
+  await exportAsPNG(null, project);
+  const raster = { width: canvas.width, height: canvas.height };
+  expect(raster.width).toBe(Math.ceil((ink + 2 * 80) * 2));
+  await exportPDF(project);
+  expect({ width: canvas.width, height: canvas.height }).toEqual(raster);
+});
+
 it('keeps DXF tags paired and the SVG well-formed when saved text holds line breaks or control characters', async () => {
   const source = roomProject(), floor = source.floors[0];
   floor.rooms = resolveRooms(floor).map(room => ({ ...room, name: 'Living\r\nroom\u0007' }));
