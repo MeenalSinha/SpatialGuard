@@ -248,6 +248,11 @@
     const p = toWallCoords(e);
     if (!p) return;
     const hit = hitOpening(p.x, p.y);
+    // Cancelling the press also stops the browser moving focus, so take it as the plan canvas
+    // does. A properties field being edited then blurs, committing to the element it shows before
+    // the selection below changes (the hit test above used what was drawn), and stops keeping
+    // Escape from returning to the plan.
+    canvas?.focus({ preventScroll: true });
     if (hit) {
       // Global selection: the PropertiesPanel now shows this opening
       selectElement(hit.id);
@@ -532,12 +537,13 @@
       <span class="text-[11px] text-gray-400 max-lg:hidden">{$t('elevationView.help')}</span>
     </div>
 
-    <!-- Elevation canvas -->
+    <!-- Elevation canvas: focused only by pressing it (not a Tab stop), so it draws no focus ring -->
     <div class="flex-1 min-h-0 relative" bind:clientWidth={cw} bind:clientHeight={ch}>
       <canvas
         aria-label={$t('elevationView.canvas')}
         bind:this={canvas}
-        class="absolute inset-0 w-full h-full touch-none select-none"
+        tabindex="-1"
+        class="absolute inset-0 w-full h-full touch-none select-none outline-none"
         style="cursor: {cursor}"
         onpointerdown={onPointerDown}
         onpointermove={onPointerMove}

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 
 const id = 'qa-elevation-escape';
@@ -21,6 +21,17 @@ function observe(page: Page) {
   page.on('pageerror', e => errors.push(e.message));
   page.on('request', r => { if (/^https?:/.test(r.url()) && new URL(r.url()).origin !== 'http://127.0.0.1:4188') external.push(r.url()); });
   return () => { expect(errors).toEqual([]); expect(external).toEqual([]); };
+}
+/** Page point on Wall 1's 250 cm high face, in cm along it and up from the floor, as the elevation
+ * fits a wall of this length (72/64 px left/right and 36/64 px top/bottom padding). */
+async function wallPoint(canvas: Locator, length: number, along: number, up: number) {
+  const box = (await canvas.boundingBox())!;
+  const scale = Math.min((box.width - 136) / length, (box.height - 100) / 250);
+  return {
+    x: box.x + 72 + (box.width - 136 - length * scale) / 2 + along * scale,
+    y: box.y + 36 + (box.height - 100 + 250 * scale) / 2 - up * scale,
+    scale,
+  };
 }
 
 test('a wall elevation leaves Escape to open menus, panels and focused fields', async ({ page }) => {
@@ -66,5 +77,42 @@ test('a wall elevation leaves Escape to open menus, panels and focused fields', 
   await expect(canvas).toHaveCount(0);
   await expect(elevation).toHaveAttribute('aria-pressed', 'false');
   await expect(thickness).toHaveValue('20');
+  check();
+});
+
+test('pressing the elevation canvas takes focus from a properties field, so Escape returns to the plan', async ({ page }) => {
+  const check = observe(page); await seed(page);
+  const elevation = page.getByRole('button', { name: 'Elevation', exact: true }).first();
+  const canvas = page.getByLabel('Wall elevation editor canvas', { exact: true });
+  const length = page.getByLabel('Length (cm)', { exact: true });
+  await elevation.click();
+  await expect(canvas).toBeVisible();
+  await expect(length).toHaveValue('600.5');
+
+  // Length commits only on blur; pressing bare wall commits it, as clicking elsewhere does.
+  await length.fill('500');
+  const bare = await wallPoint(canvas, 600.5, 100, 125);
+  await page.mouse.click(bare.x, bare.y);
+  await expect(canvas).toBeFocused();
+  await expect(page.getByText('5 m × 2.5 m', { exact: true })).toBeVisible();
+  await expect(length).toHaveValue('500');
+
+  // Select Wall 1's door and edit its width: Escape inside the field stays with the field.
+  const door = await wallPoint(canvas, 500, 250, 100);
+  await page.mouse.click(door.x, door.y);
+  const width = page.getByRole('spinbutton', { name: 'Width (cm)', exact: true });
+  await width.fill('100');
+  await page.keyboard.press('Escape');
+  await expect(width).toBeFocused();
+  await expect(canvas).toBeVisible();
+
+  // Dragging the door takes focus back to the canvas, so Escape returns to the plan.
+  await page.mouse.move(door.x, door.y); await page.mouse.down();
+  await page.mouse.move(door.x + 30 * door.scale, door.y, { steps: 5 }); await page.mouse.up();
+  await expect(canvas).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(canvas).toHaveCount(0);
+  await expect(elevation).toHaveAttribute('aria-pressed', 'false');
+  await expect(width).toHaveValue('100');
   check();
 });
