@@ -55,6 +55,8 @@
   };
 
   let viewerMounted = false;
+  // The browser could not create a WebGL context: the view explains that instead of offering a viewer.
+  let webglUnavailable = $state(false);
   let animId: number | undefined;
   function requestRender() {
     if (viewerMounted && animId === undefined) animId = requestAnimationFrame(animate);
@@ -783,7 +785,16 @@
     camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 1, 20000);
     camera.position.set(800, 600, 800);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+    } catch {
+      // WebGL is off, blocked or unsupported in this browser, and three has logged the error. Release
+      // the scene built so far; onMount then starts nothing that needs a renderer.
+      skyTexture.dispose();
+      clearGroup(scene);
+      webglUnavailable = true;
+      return false;
+    }
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.shadowMap.enabled = true;
@@ -988,6 +999,7 @@
 
     wallGroup = new THREE.Group();
     scene.add(wallGroup);
+    return true;
   }
 
   function createGhostPreview(catalogId: string) {
@@ -1994,7 +2006,8 @@
       cancelAIRender();
       openaiModel = getEffectiveModel(config);
     });
-    init();
+    // Without WebGL nothing below may start: every listener, observer and frame reaches the renderer.
+    if (!init()) { stopAISettings(); return; }
     viewerMounted = true;
     markSceneDirty();
 
@@ -2059,6 +2072,11 @@
 </script>
 
 <div bind:this={container} class="w-full h-full relative" role="region" aria-label={$t('viewerNav.region')}>
+  {#if webglUnavailable}
+    <div class="flex h-full items-center justify-center p-6">
+      <p role="alert" class="max-w-md rounded-lg bg-black/80 px-4 py-3 text-center text-sm text-white">{$t('viewerNav.webglUnavailable')}</p>
+    </div>
+  {:else}<!-- Every control below needs the renderer. -->
   <div class="absolute bottom-16 left-4 z-10 max-w-xs">
     {#if renderExportMessage}<p role="status" class="mb-2 rounded bg-black/80 p-2 text-xs text-white">{renderExportLabels[renderExportMessage] ? $t(renderExportLabels[renderExportMessage]) : renderExportMessage}</p>{/if}
     <button class="rounded bg-black/70 px-3 py-2 text-sm text-white hover:bg-black/80" onclick={exportBlenderScene}
@@ -2559,4 +2577,5 @@
       </label>
     </div>
   {/if}
+  {/if}<!-- end of the controls that need the renderer -->
 </div>

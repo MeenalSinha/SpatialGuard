@@ -422,9 +422,10 @@ separate local render lab described in [render-lab.md](render-lab.md); it is
 not needed for normal use.
 
 Room floors come from **Floor Material** in 2D Room Properties; wall colours
-and textures from Wall Properties. The 3D view needs WebGL; if it stays on
-"Loading 3D viewer…" or is blank, check that hardware acceleration is enabled
-in the browser and that no extension blocks WebGL.
+and textures from Wall Properties. The 3D view needs WebGL; if the browser
+cannot start it, the view says "The 3D view needs WebGL, which this browser
+could not start. …" instead. Check that hardware acceleration is enabled in
+the browser and that no extension blocks WebGL; the 2D plan keeps working.
 
 ## 9. Settings
 
