@@ -8,13 +8,16 @@ this service. No database or extra hosted service is introduced.
 
 ## Deployment state
 
-This release stages the quota endpoint and updates the companion client.
-**The existing public Storage create rule remains deployed for older iPhone
-builds. Consequently, the bucket is not yet protected by an aggregate quota.**
-The cutover candidate is `ops/storage-quota-cutover.rules`; it is deliberately
-not referenced by `firebase.json`. Closing the old path requires confirming that
-distributed iPhone clients have migrated. App Store/TestFlight publication is
-separate from merging the companion source.
+`storage.rules` no longer allows public creates: captures reach the bucket only
+through `POST /api/handoffs`, so the aggregate quota below covers every upload.
+This is the reviewed cutover, formerly `ops/storage-quota-cutover.rules`.
+
+The migration evidence, from production on October 16, 2026: App Store
+version 1.2, released September 17, shares through the endpoint. In the week
+before the cutover the inbox received about 100 endpoint captures a day, which
+was the daily cap, and 4 direct uploads in total from older apps. iPhone apps
+older than 1.2 can no longer share links; they can still export the plan file,
+and updating the app restores sharing.
 
 ## Endpoint contract
 
