@@ -77,3 +77,46 @@ test('Portuguese 3D view explains missing WebGL', async ({ page }) => {
   await expect(page.getByLabel('Área de edição da planta baixa', { exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('the one-time 3D tip waits for a working 3D view instead of being used up without WebGL', async ({ page }) => {
+  test.setTimeout(90_000); // Three viewer visits, the first also downloading the lazy bundle.
+  // WebGL stays blocked until the test allows it, as when hardware acceleration is turned back on.
+  await page.addInitScript(() => {
+    localStorage.setItem('o3d_tips_seen', JSON.stringify(['first-wall', 'first-furniture', 'first-export', 'first-door']));
+    (window as any).__blockWebGL = true;
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: any[]) {
+      return (window as any).__blockWebGL && /^(webgl2?|experimental-webgl)$/.test(type) ? null : (getContext as any).call(this, type, ...args);
+    } as typeof getContext;
+  });
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/editor');
+  const viewer = page.getByRole('region', { name: '3D floor plan viewer', exact: true });
+  const main = viewer.locator('canvas[data-plan3d-canvas="true"]');
+  const tip = page.getByRole('region', { name: 'Getting started tip', exact: true });
+  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(viewer.getByRole('alert')).toBeVisible({ timeout: 60_000 });
+  // No tip about orbiting and walkthrough, which this view does not offer. Checked once rather
+  // than polled, because an open tip closes by itself after eight seconds.
+  expect(await tip.count()).toBe(0);
+  await page.getByRole('button', { name: '2D', exact: true }).click();
+
+  await page.evaluate(() => { (window as any).__blockWebGL = false; });
+  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(main).toBeVisible({ timeout: 60_000 });
+  // The first working 3D view still gets the tip, in its usual place.
+  await expect(tip).toContainText('Orbit with mouse, scroll to zoom. Try walkthrough mode!');
+  const box = (await tip.boundingBox())!;
+  expect([Math.round(box.x), Math.round(box.y)]).toEqual([200, 80]);
+  await tip.getByRole('button', { name: 'Got it', exact: true }).click();
+  await expect(tip).toHaveCount(0);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('o3d_tips_seen')!))).toContain('first-3d');
+
+  // Shown once: the next 3D view starts without it.
+  await page.getByRole('button', { name: '2D', exact: true }).click();
+  await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(main).toBeVisible({ timeout: 30_000 });
+  expect(await tip.count()).toBe(0);
+  expect(errors).toEqual([]);
+});

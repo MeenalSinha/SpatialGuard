@@ -11,6 +11,7 @@
   import { generateOpenAIRenderImage, validateOpenAIConfig, getEffectiveModel, normalizeBaseUrl } from '$lib/utils/openaiClient';
   import OpenAIModelPicker from '$lib/components/ai/OpenAIModelPicker.svelte';
   import { activeFloor, currentProject, selectedElementId } from '$lib/stores/project';
+  import { triggerTip } from '$lib/stores/onboarding.svelte';
   import type { Floor, Wall, Door, Window as Win, Stair } from '$lib/models/types';
   import { getWallStartHeight, getWallEndHeight } from '$lib/models/types';
   import { wallColors, type WallColor } from '$lib/utils/materials';
@@ -1963,6 +1964,8 @@
     if (!init()) { stopAISettings(); return; }
     viewerMounted = true;
     markSceneDirty();
+    // The one-time tip offers orbit and walkthrough, so only a view with a renderer uses it up.
+    triggerTip('first-3d', 200, 80);
 
     // Rebuild 3D scene when photo textures finish loading
     const stopTextures = setTextureLoadCallback(() => {

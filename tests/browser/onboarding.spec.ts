@@ -71,6 +71,8 @@ test('replacement hints get their own timer and resizing does not delay auto-dis
   await expect(tip(page)).toContainText(exportMessage);
   await page.getByRole('button', { name: 'Export', exact: true }).click();
   await page.getByRole('button', { name: '3D', exact: true }).click();
+  // The 3D hint replaces it once the viewer has started; the paused clock keeps the old timer waiting.
+  await expect(tip(page)).toContainText(viewerMessage, { timeout: 30_000 });
   await page.clock.runFor(2500);
   // The first hint's deadline has passed, but the replacement is only 2.5s old.
   await expect(tip(page)).toContainText(viewerMessage);
@@ -84,6 +86,8 @@ test('replacement hints get their own timer and resizing does not delay auto-dis
 
   await page.getByRole('button', { name: '2D', exact: true }).click();
   await page.getByRole('button', { name: '3D', exact: true }).click();
+  // A started viewer is where the hint would open again.
+  await expect(page.locator('canvas[data-plan3d-canvas="true"]')).toBeVisible();
   await page.clock.runFor(400);
   await expect(tip(page)).not.toBeVisible();
   // Replacing a tip must not mark that unfinished tip as seen.
@@ -122,11 +126,13 @@ test('hints close and stay closed for the session when storage cannot record the
   // Automatic dismissal takes the same path.
   await page.getByRole('button', { name: '3D', exact: true }).click();
   await page.clock.runFor(400);
-  await expect(tip(page)).toContainText(viewerMessage);
+  // The hint opens once the viewer has started, and its timer starts then.
+  await expect(tip(page)).toContainText(viewerMessage, { timeout: 30_000 });
   await page.clock.runFor(8000);
   await expect(tip(page)).not.toBeVisible();
   await page.getByRole('button', { name: '2D', exact: true }).click();
   await page.getByRole('button', { name: '3D', exact: true }).click();
+  await expect(page.locator('canvas[data-plan3d-canvas="true"]')).toBeVisible();
   await page.clock.runFor(400);
   await expect(tip(page)).not.toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem('o3d_tips_seen'))).toBeNull();

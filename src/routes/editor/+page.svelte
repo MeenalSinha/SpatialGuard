@@ -28,7 +28,6 @@
   import ElevationView from '$lib/components/editor/ElevationView.svelte';
   import PrintLayout from '$lib/components/editor/PrintLayout.svelte';
   import OnboardingTooltip from '$lib/components/OnboardingTooltip.svelte';
-  import { triggerTip } from '$lib/stores/onboarding.svelte';
 
   let commandPaletteOpen = $state(false);
   let printOpen = $state(false);
@@ -126,8 +125,6 @@
       selectedElementId.set(null);
       selectedRoomId.set(null);
       elevationPickMode.set(false);
-      // Onboarding tip for first 3D view
-      triggerTip('first-3d', 200, 80);
     }
   });
 
