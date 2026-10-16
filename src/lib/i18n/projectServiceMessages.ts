@@ -67,10 +67,12 @@ function packageMessage(message: string, language: Locale): string {
   const damaged = /^The file ([\s\S]+) is damaged\.$/.exec(detail);
   const missing = /^Missing attachment: ([\s\S]+)\.$/.exec(detail);
   const unknown = /^Unrecognized package file: ([\s\S]+)\.$/.exec(detail);
+  const tracing = /^The tracing image on floor “([\s\S]*)” is ([\s\S]+), not an embedded PNG, JPEG or GIF image\. Replace it or download a JSON backup to preserve it\.$/.exec(detail);
   const translated = key ? translate(language, key) : damaged
     ? translate(language, 'projectService.packageFileDamaged', { name: damaged[1] }) : missing
     ? translate(language, 'projectService.packageMissingAttachment', { name: missing[1] }) : unknown
-    ? translate(language, 'projectService.packageUnknownFile', { name: unknown[1] }) : detail;
+    ? translate(language, 'projectService.packageUnknownFile', { name: unknown[1] }) : tracing
+    ? translate(language, 'projectService.packageTracingImageFormat', { floor: tracing[1], format: tracing[2] }) : detail;
   return `${translate(language, 'projectService.packageInvalid')} ${translated}`;
 }
 const counts: { pattern: RegExp; one: ServiceKey; many: ServiceKey }[] = [
