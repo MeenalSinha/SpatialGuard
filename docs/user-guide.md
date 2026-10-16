@@ -544,10 +544,11 @@ The **Export** button in the top bar opens:
 Browsers add " (1)", " (2)" and so on when a file with the same name already
 exists in the Downloads folder.
 
-If the active floor is empty, the image and PDF exports do nothing except show
-"Add walls, furniture, stairs, columns, entourage, notes or measurements to the
-active floor before exporting a PNG" (or "… a PDF"). Hidden layers and hidden
-furniture are still exported.
+If the active floor is empty, the 2D PNG, SVG, DXF, DWG and PDF exports do
+nothing except show "Add walls, furniture, stairs, columns, entourage, notes or
+measurements to the active floor before exporting a PNG" (or "… an SVG", "… a
+DXF", "… a DWG", "… a PDF"). Hidden layers and hidden furniture are still
+exported.
 
 ### Printing to scale (Print Layout)
 

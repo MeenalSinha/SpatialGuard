@@ -4,7 +4,7 @@
   let { onToggleLayers, layersOpen = false, onToggleHistory, historyOpen = false }: { onToggleLayers?: () => void; layersOpen?: boolean; onToggleHistory?: (trigger: HTMLButtonElement) => void; historyOpen?: boolean } = $props();
   import { captureMain3DPNG } from '$lib/utils/captureMain3D';
   import ExportNotice from '$lib/components/ExportNotice.svelte';
-  import { exportNotice, exportPNGWithFeedback, exportPDFWithFeedback as exportPDF, downloadInterchangeJson, openInSiblingPlanner, USER_GUIDE_URL } from '$lib/stores/exportNotice';
+  import { exportNotice, exportPNGWithFeedback, exportPDFWithFeedback as exportPDF, exportSVGWithFeedback, exportDXFWithFeedback, exportDWGWithFeedback, downloadInterchangeJson, openInSiblingPlanner, USER_GUIDE_URL } from '$lib/stores/exportNotice';
   import { SIBLING_PLANNERS, type SiblingPlannerId } from '$lib/utils/transferLink';
   import { interchangeProjectName } from '$lib/utils/interchange';
   import { modalDialog, hasOpenModal } from '$lib/utils/modalDialog';
@@ -20,8 +20,7 @@
   import { currentProject, viewMode, undo, redo, addFloor, removeFloor, setActiveFloor, updateProjectName, createDefaultProject, snapEnabled, canvasZoom, canvasMinimumZoom, panMode, showFurnitureStore, layerVisibility, activeFloor, selectedElementId, elevationWallId, elevationPickMode } from '$lib/stores/project';
   import { get } from 'svelte/store';
   import type { Floor } from '$lib/models/types';
-  import { exportAsJSON, exportAsSVG } from '$lib/utils/export';
-  import { exportDXF, exportDWG } from '$lib/utils/cadExport';
+  import { exportAsJSON } from '$lib/utils/export';
   import { createProjectFromRoomPlan, extractRoomJsonFromZip, isRoomPlanJson } from '$lib/utils/roomplanImport';
   import SettingsDialog from './SettingsDialog.svelte';
   import AreaSummaryPanel from '$lib/components/sidebar/AreaSummaryPanel.svelte';
@@ -210,21 +209,20 @@
 
   function onExportSVG() {
     const p = get(currentProject);
-    if (p) exportAsSVG(p, get(locale));
+    if (p) exportSVGWithFeedback(p, get(locale));
     exportOpen = false;
   }
 
   function onExportDXF() {
     const p = get(currentProject);
-    if (p) exportDXF(p, get(locale));
+    if (p) exportDXFWithFeedback(p, get(locale));
     exportOpen = false;
   }
 
   function onExportDWG() {
     const p = get(currentProject);
-    exportOpen = false; exportNotice.set(null);
-    // There is no DWG writer: the DXF downloads and the notice says so instead of a blocking alert.
-    if (p && exportDWG(p, get(locale))) exportNotice.set({ title: 'exportNotice.dwgTitle', message: 'exportNotice.dwgFallback' });
+    exportOpen = false;
+    if (p) exportDWGWithFeedback(p, get(locale));
   }
 
   function onExportPDF() {

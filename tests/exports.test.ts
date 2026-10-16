@@ -231,6 +231,15 @@ it('does not capture a viewport for an empty project floor', async () => {
  expect(downloaded).toHaveLength(0);
 });
 
+it('reports whether an SVG or DXF was downloaded so the editor can explain an empty floor', () => {
+ expect(exportAsSVG(namedProject())).toBe(true); expect(downloaded).toHaveLength(1);
+ const empty = namedProject(); empty.floors[0].walls = [];
+ expect(exportAsSVG(empty)).toBe(false); expect(exportDXF(empty)).toBe(false);
+ const floorless = namedProject(); floorless.floors = [];
+ expect(exportAsSVG(floorless)).toBe(false); expect(exportDXF(floorless)).toBe(false);
+ expect(downloaded).toHaveLength(1);
+});
+
 it('frames an oversized rotated furniture symbol consistently in PNG and PDF', async()=>{
  const project=namedProject();project.floors[0].furniture=[{id:'large',catalogId:'unknown',position:{x:-600,y:-600},rotation:45,width:800,depth:300,scale:{x:1,y:1,z:1}}];
  await exportAsPNG(null,project);const size={width:canvas.width,height:canvas.height};

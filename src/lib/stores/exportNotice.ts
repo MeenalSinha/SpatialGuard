@@ -1,7 +1,8 @@
 import { writable } from 'svelte/store';
 import type { Locale, TranslationKey } from '$lib/i18n';
 import type { Project } from '$lib/models/types';
-import { exportAsPNG, exportPDF } from '$lib/utils/export';
+import { exportAsPNG, exportAsSVG, exportPDF } from '$lib/utils/export';
+import { exportDWG, exportDXF } from '$lib/utils/cadExport';
 import { interchangeFileName, projectToPreparedRoomPlan, sortedJson } from '$lib/utils/interchange';
 import { TransferLinkError, siblingImportUrl, type SiblingPlannerId } from '$lib/utils/transferLink';
 
@@ -31,6 +32,37 @@ export async function exportPNGWithFeedback(project: Project) {
     if (!await exportAsPNG(null, project)) exportNotice.set({ title: 'exportNotice.pngTitle', message: 'exportNotice.pngEmpty' });
   } catch {
     exportNotice.set({ title: 'exportNotice.pngTitle', message: 'exportNotice.pngFailed' });
+  }
+}
+
+/** Like PNG and PDF, the vector and CAD exports explain an empty floor or a failure instead of doing nothing; labels follow `language`. */
+export function exportSVGWithFeedback(project: Project, language: Locale = 'en') {
+  exportNotice.set(null);
+  try {
+    if (!exportAsSVG(project, language)) exportNotice.set({ title: 'exportNotice.svgTitle', message: 'exportNotice.svgEmpty' });
+  } catch {
+    exportNotice.set({ title: 'exportNotice.svgTitle', message: 'exportNotice.svgFailed' });
+  }
+}
+
+export function exportDXFWithFeedback(project: Project, language: Locale = 'en') {
+  exportNotice.set(null);
+  try {
+    if (!exportDXF(project, language)) exportNotice.set({ title: 'exportNotice.dxfTitle', message: 'exportNotice.dxfEmpty' });
+  } catch {
+    exportNotice.set({ title: 'exportNotice.dxfTitle', message: 'exportNotice.dxfFailed' });
+  }
+}
+
+/** There is no DWG writer: the DXF downloads and the notice says so instead of a blocking alert. */
+export function exportDWGWithFeedback(project: Project, language: Locale = 'en') {
+  exportNotice.set(null);
+  try {
+    exportNotice.set(exportDWG(project, language)
+      ? { title: 'exportNotice.dwgTitle', message: 'exportNotice.dwgFallback' }
+      : { title: 'exportNotice.dwgErrorTitle', message: 'exportNotice.dwgEmpty' });
+  } catch {
+    exportNotice.set({ title: 'exportNotice.dwgErrorTitle', message: 'exportNotice.dwgFailed' });
   }
 }
 

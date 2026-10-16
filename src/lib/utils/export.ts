@@ -323,14 +323,15 @@ export async function exportAsPNG(canvas: HTMLCanvasElement | null, project?: Pr
 
 export { downloadProjectJSON as exportAsJSON } from './projectBackup';
 
-export function exportAsSVG(project: Project, language: Locale = 'en') {
+/** Returns whether a file was downloaded (an empty floor exports nothing). */
+export function exportAsSVG(project: Project, language: Locale = 'en'): boolean {
   const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
-  if (!floor) return;
+  if (!floor) return false;
   const entourage=(floor.entourage ?? []).flatMap(item=>{
     const def=getEntourageDef(item.defId), custom=def?undefined:project.customEntourage?.find(d=>d.id===item.defId);
     return def || custom ? [{item,def,custom,aspect:def?.aspect ?? custom!.aspect}] : [];
   });
-  if (!hasPlanExportContent(floor) && !entourage.length) return;
+  if (!hasPlanExportContent(floor) && !entourage.length) return false;
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const w of floor.walls) {
@@ -592,6 +593,7 @@ ${paths}</svg>`;
 
   const blob = new Blob([svg], { type: 'image/svg+xml' });
   download(blob, `${project.name || 'floorplan'}.svg`);
+  return true;
 }
 
 export function exportAs3DPNG(renderer: { domElement: HTMLCanvasElement }) {
