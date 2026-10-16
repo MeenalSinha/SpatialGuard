@@ -45,7 +45,7 @@
   const actions: ResultItem[] = $derived([
     { id: 'a-export-svg', name: $t('commandPalette.exportSvg'), icon: '⚡', category: 'action', categoryLabel: `⚡ ${$t('commandPalette.action')}`, action: () => { const p = get(currentProject); if (p) exportAsSVG(p, get(locale)); } },
     { id: 'a-export-dxf', name: $t('commandPalette.exportDxf'), icon: '⚡', category: 'action', categoryLabel: `⚡ ${$t('commandPalette.action')}`, action: () => { const p = get(currentProject); if (p) exportDXF(p, get(locale)); } },
-    { id: 'a-export-pdf', name: $t('commandPalette.exportPdf'), icon: '⚡', category: 'action', categoryLabel: `⚡ ${$t('commandPalette.action')}`, action: () => { const p = get(currentProject); if (p) exportPDF(p); } },
+    { id: 'a-export-pdf', name: $t('commandPalette.exportPdf'), icon: '⚡', category: 'action', categoryLabel: `⚡ ${$t('commandPalette.action')}`, action: () => { const p = get(currentProject); if (p) exportPDF(p, get(locale)); } },
     { id: 'a-export-png', name: $t('commandPalette.exportPng'), icon: '⚡', category: 'action', categoryLabel: `⚡ ${$t('commandPalette.action')}`, action: () => { const p = get(currentProject); if (p) void exportPNGWithFeedback(p); } },
     { id: 'a-export-json', name: $t('commandPalette.exportJson'), icon: '⚡', category: 'action', categoryLabel: `⚡ ${$t('commandPalette.action')}`, action: () => { const p = get(currentProject); if (p) exportAsJSON(p); } },
     { id: 'a-toggle-grid', name: $t('commandPalette.toggleGrid'), icon: '⚡', category: 'action', categoryLabel: `⚡ ${$t('commandPalette.action')}`, action: () => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', bubbles: true })); } },

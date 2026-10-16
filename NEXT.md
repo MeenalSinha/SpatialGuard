@@ -4,6 +4,38 @@ The user-facing goal status is maintained in [STATUS.md](STATUS.md). Update it
 when implementation, validation, blockers or next priorities change; keep this
 file as the detailed backlog and evidence history.
 
+## Editor defects found during the October 15 review — October 15
+
+Branch `fix/editor-small-bugs` (stacked on the two branches above). Six
+user-visible defects, each with a regression:
+
+- Zoom keys: `+` / `=` / `-` / `_` (and numpad) now zoom the plan ×1.25 within
+  the canvas limits from `handleGlobalShortcut`; the shortcuts dialog had
+  advertised them with no handler. Never with Ctrl/Cmd, while typing or with a
+  modal open (`tests/shortcuts.test.ts`).
+- Export as DWG: the English `alert()` is gone; the DXF downloads and an
+  ExportNotice ("DWG saved as DXF") explains it. `exportDXF`/`exportDWG` return
+  whether a file was downloaded (`tests/exports.test.ts`,
+  `tests/browser/dimension-exports.spec.ts`).
+- Build → Import Image: the 5 MB `alert()` is a localized inline note.
+- Wall geometry: `addWall`, `moveWallEndpoint` and `moveWallGeometryDuringDrag`
+  store fresh `{ x, y }` points, so magnet-snap flags (`snappedToEndpoint`,
+  `snappedToWall`, `snappedWallId`) no longer reach saves or Download JSON and
+  joined corners no longer share one object. Older saved projects that already
+  carry those keys are not rewritten; the keys are harmless and vanish when the
+  endpoint next moves (`tests/wall-geometry-drag.test.ts`).
+- Product name "OpenPlan3D" in the shortcuts Copy All text and the PDF title
+  block; PDF labels are localized through `pdf.*` keys, with `exportPDF` and
+  `exportPDFWithFeedback` taking a language (default `en`).
+- Export menu → **Import project package** opens the package dialog in the
+  editor and switches to the imported copy; `ProjectPackageDialog.onimported`
+  now receives the imported project's library id
+  (`tests/browser/project-package.spec.ts`).
+
+Verification: `npm test` 1,339 tests in 135 files; `npm run check` clean;
+production build; chromium browser cases for shortcuts, project package, PDF
+and DXF exports pass (18). Firefox/WebKit not run locally.
+
 ## Sibling interchange, CORS and five GitHub issues — October 15
 
 Web branch `fix/sibling-compat-and-open-issues`, uncommitted at the time of

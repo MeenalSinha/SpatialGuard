@@ -1,5 +1,5 @@
 import { prepareEntourageImage } from './entourageImages';
-import type { Locale } from '$lib/i18n';
+import { translate, type Locale, type TranslationKey } from '$lib/i18n';
 import { furnitureName } from '$lib/i18n/furnitureNames';
 import { roomHoles, traceRoomRings } from './roomNesting';
 import { getEntourageDef } from './entourageCatalog';
@@ -647,7 +647,7 @@ export function exportAs3DPNG(renderer: { domElement: HTMLCanvasElement }) {
   });
 }
 
-export async function exportPDF(project: Project) {
+export async function exportPDF(project: Project, language: Locale = 'en') {
   const snapshot=structuredClone(project);
   const floor=snapshot.floors.find(f=>f.id===snapshot.activeFloorId) ?? snapshot.floors[0];
   const definitions=[...new Set((floor?.entourage ?? []).flatMap(item=>{
@@ -662,10 +662,10 @@ export async function exportPDF(project: Project) {
     if(context && !context.isContextLost()) capture.image=source.toDataURL('image/png');
   } catch { /* The completed plan can still export without the optional view. */ }
   const preparedImages=new Map(await Promise.all(definitions.map(async def=>[def.id,await prepareEntourageImage(def)] as const)));
-  return renderPDF(snapshot,preparedImages,capture);
+  return renderPDF(snapshot,preparedImages,capture,language);
 }
 
-function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImageElement>, capture: {width:number;height:number;image?:string}|null) {
+function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImageElement>, capture: {width:number;height:number;image?:string}|null, language: Locale) {
   const floor = project.floors.find(f => f.id === project.activeFloorId) ?? project.floors[0];
   if (!floor) return;
   const entourage=(floor.entourage ?? []).flatMap(item=>{
@@ -675,6 +675,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   if (!hasPlanExportContent(floor) && !entourage.length) return;
 
   const settings = get(projectSettings);
+  const label = (key: TranslationKey, variables?: Record<string, string | number>) => translate(language, key, variables);
   const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
   const pw = pdf.internal.pageSize.getWidth();   // ~297
   const ph = pdf.internal.pageSize.getHeight();   // ~210
@@ -706,7 +707,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     // Project name
     pdf.setFontSize(12);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(project.name || 'Untitled Project', margin + 4, tbY + 9);
+    pdf.text(project.name || label('library.untitled'), margin + 4, tbY + 9);
     pdf.setFontSize(8);
     pdf.setFont('helvetica', 'normal');
     pdf.text(floor.name, margin + 4, tbY + 15);
@@ -716,10 +717,10 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     }
 
     // Date / scale
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const today = new Date().toLocaleDateString(language === 'pt' ? 'pt-BR' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
     pdf.setFontSize(8);
-    pdf.text(`Date: ${today}`, col1 + 4, tbY + 9);
-    pdf.text(`Units: ${settings.units}`, col1 + 4, tbY + 15);
+    pdf.text(label('pdf.date', { date: today }), col1 + 4, tbY + 9);
+    pdf.text(label('pdf.units', { units: label(settings.units === 'imperial' ? 'settings.imperial' : 'settings.metric') }), col1 + 4, tbY + 15);
 
     // Branding
     pdf.setFontSize(9);
@@ -727,7 +728,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     pdf.text('openplan3d.com', col2 + 4, tbY + 9);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(7);
-    pdf.text('Created with Open 3D Floor Planner', col2 + 4, tbY + 15);
+    pdf.text(label('pdf.createdWith'), col2 + 4, tbY + 15);
   }
 
   // ── Page 1: Floor Plan ──
@@ -854,7 +855,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
   if (rooms.length > 0) {
     const tX = margin + 6;
     const colWidths = [12, 70, 45, 55, 65];
-    const headers = ['#', 'Room Name', 'Type', 'Area', 'Floor Texture'];
+    const headers = ['#', label('pdf.columnName'), label('pdf.columnType'), label('pdf.columnArea'), label('pdf.columnTexture')];
     const tableW = colWidths.reduce((a, b) => a + b, 0);
     const bottom = ph - margin - titleBlockH - 4;
     let tY = 0;
@@ -865,7 +866,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
       pdf.setTextColor(40);
       pdf.setFontSize(14);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('Room Schedule', tX, margin + 12);
+      pdf.text(label('pdf.schedule'), tX, margin + 12);
       tY = margin + 20;
       pdf.setFillColor(50, 50, 60);
       pdf.rect(tX, tY, tableW, 8, 'F');
@@ -919,11 +920,11 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
     pdf.rect(tX, tY, tableW, 8, 'F');
     pdf.setTextColor(255);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('TOTAL', tX + colWidths[0] + 3, tY + 5.5);
+    pdf.text(label('pdf.total'), tX + colWidths[0] + 3, tY + 5.5);
     pdf.text(formatArea(totalArea, settings.units), tX + colWidths[0] + colWidths[1] + colWidths[2] + 3, tY + 5.5);
     pdf.setFont('helvetica', 'normal');
     pdf.setTextColor(80);
-    pdf.text(`${rooms.length} rooms  ·  ${floor.walls.length} walls  ·  ${floor.doors.length} doors  ·  ${floor.windows.length} windows  ·  ${floor.furniture.length} furniture items`, tX, tY + 18);
+    pdf.text(label('pdf.summary', { rooms: rooms.length, walls: floor.walls.length, doors: floor.doors.length, windows: floor.windows.length, furniture: floor.furniture.length }), tX, tY + 18);
   }
 
   let omitted3D = Boolean(capture);
@@ -938,7 +939,7 @@ function renderPDF(project: Project, preparedImages: ReadonlyMap<string,HTMLImag
         pdf.setFontSize(14);
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(40);
-        pdf.text('3D Perspective View', margin + 6, margin + 12);
+        pdf.text(label('pdf.perspective'), margin + 6, margin + 12);
 
         const da3W = pw - margin * 2 - 4;
         const da3H = ph - margin * 2 - titleBlockH - 20;

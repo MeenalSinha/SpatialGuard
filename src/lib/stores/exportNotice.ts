@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { TranslationKey } from '$lib/i18n';
+import type { Locale, TranslationKey } from '$lib/i18n';
 import type { Project } from '$lib/models/types';
 import { exportAsPNG, exportPDF } from '$lib/utils/export';
 import { interchangeFileName, projectToPreparedRoomPlan, sortedJson } from '$lib/utils/interchange';
@@ -10,11 +10,11 @@ export const USER_GUIDE_URL = 'https://github.com/laanlabs/openPlan3D/blob/main/
 
 export const exportNotice = writable<{ title: TranslationKey; message: TranslationKey } | null>(null);
 
-/** Both PDF entry points use the same outcome reporting. */
-export async function exportPDFWithFeedback(project: Project) {
+/** Both PDF entry points use the same outcome reporting; the sheet's labels follow `language`. */
+export async function exportPDFWithFeedback(project: Project, language: Locale = 'en') {
   exportNotice.set(null);
   try {
-    const result = await exportPDF(project);
+    const result = await exportPDF(project, language);
     if (!result) {
       exportNotice.set({ title: 'exportNotice.pdfTitle', message: 'exportNotice.pdfEmpty' });
     } else if (result.omitted3D) {
