@@ -4,6 +4,62 @@ The user-facing goal status is maintained in [STATUS.md](STATUS.md). Update it
 when implementation, validation, blockers or next priorities change; keep this
 file as the detailed backlog and evidence history.
 
+## Fifteen defects from the October 15 bug hunt — October 16
+
+Branch `fix/editor-defects-2` (stacked on the three branches below). A
+37-agent hunt over the editor's core flows, with two refuters per finding,
+confirmed fifteen defects; all are fixed here with fixture-based regressions:
+
+- **Version History** (high): Restore now writes the version being replaced as
+  a "Before restore" snapshot first and aborts when that write fails; the
+  confirm text says the current version is kept. Automatic snapshots
+  ("Session start", the 5-minute "Auto-save", "Before restore") are skipped
+  while identical to the newest stored one, so ten idle ticks no longer evict
+  every distinct version (`versionHistory.ts`, `tests/version-history.test.ts`).
+- **Room detection** (high): a room with two or more dangling stub walls no
+  longer vanishes; the face walk's step budget counts directed edges and a face
+  closes on its starting directed edge, so stub-bearing faces trace completely
+  whatever the wall order (`roomDetection.ts`, `tests/room-detection-stubs.test.ts`).
+- **DXF/DWG door symbol** (high): the arc was hinged at the opening centre with
+  half the radius, the leaf lay along the wall and the swing side was mirrored;
+  `doorSymbol.ts` now gives SVG and DXF one shared, type-aware glyph and the
+  SVG output is byte-identical (`tests/dxf-door-symbol.test.ts`).
+- **RoomPlan import**: section labels go to the smallest enclosing room and a
+  second label inside a claimed room becomes a wall-less metadata room instead
+  of stealing a neighbour; walls collapsed below 1 cm by straighten/orthogonal
+  are dropped with their openings re-homed, so the package export no longer
+  fails on a web plan (`roomplanImport.ts`, `tests/roomplan-import-labels.test.ts`).
+- **Re-import after delete**: a backup of a plan deleted in this tab imports
+  under a fresh id instead of failing every autosave with a false "another
+  tab" conflict (`projectOpening.ts`).
+- **Tracing images**: the picker accepts PNG/JPEG/GIF/WebP, re-encodes other
+  picks to PNG, and the package exporter names the floor and format of an
+  image it cannot carry (`projectPackage.ts`, `BuildPanel.svelte`); the paste
+  path accepts the same formats.
+- **Hit testing**: straight walls are hit across their painted body and the
+  nearest wall wins, like curved walls (`hitTesting.ts`, `tests/wall-hit-testing.test.ts`).
+- **History semantics**: rename and description edits are history steps;
+  stale selection ids are pruned after Undo; `mutate` records nothing for a
+  no-op edit and `endUndoGroup` ignores timestamps (`stores/project.ts`,
+  `tests/history-semantics.test.ts`).
+- **Canvas**: stair/column placement cancels on Escape, on a tool change and
+  via its own toggle button; dragging a room translates curved walls rigidly;
+  marquee selection locates openings on curved walls where they are drawn
+  (`placementArming.ts`, `wallTranslation.ts`, `marqueeSelection.ts`).
+
+Verification, October 16, local: `npm test` **1,414 tests in 144 files**,
+`npm run check` clean, production build; chromium browser cases for the
+touched areas: 73 passed in two batches (versions, project package, exports,
+shortcuts, stitching, door join, PDF, walls, rooms, history, editor).
+Sibling parity suites (6/22/4) and the cross-planner harness (4 per planner)
+still pass. Firefox/WebKit not run locally.
+
+Remaining candidates from the same hunt (not yet verified or fixed): 3D
+viewer resource handling (shared materials after X-ray, no WebGL-unavailable
+guard, camera re-framing on scene rebuilds), the two unrelated "Snap to Grid"
+controls, busy dialogs vanishing on a second Escape, blocked site storage
+crashing at load, and the lower-ranked items listed in the hunt record.
+
 ## Editor defects found during the October 15 review — October 15
 
 Branch `fix/editor-small-bugs` (stacked on the two branches above). Six
