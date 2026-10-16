@@ -407,7 +407,7 @@ export const pt = {
   "exportMenu.plannersTitle": "Outros planejadores",
   "exportMenu.openIn": "Abrir no {name}",
   "exportMenu.interchange": "Baixar JSON de intercâmbio",
-  "exportMenu.interchangeHelp": "Para OpenKitchen3D, OpenLandscape3D, OpenCatio3D e o aplicativo do iPhone. Abrir outro planejador coloca a planta inteira no link; nada é enviado.",
+  "exportMenu.interchangeHelp": "Para OpenKitchen3D, OpenLandscape3D, OpenCatio3D e o aplicativo do iPhone. Abrir outro planejador coloca o arquivo inteiro no link; nada é enviado. O arquivo contém apenas a geometria da planta; o pacote de projeto mantém a planta completa.",
   "assistant.title": "Partilhar com assistente",
   "assistant.help": "Envie este projeto por sete dias para que um assistente como o Claude possa resumi-lo, rever as fotos ou preparar uma entrega para empreiteiro.",
   "assistant.photos": "Incluir fotos",

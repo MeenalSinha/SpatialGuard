@@ -407,7 +407,7 @@ export const en = {
   "exportMenu.plannersTitle": "Other planners",
   "exportMenu.openIn": "Open in {name}",
   "exportMenu.interchange": "Download interchange JSON",
-  "exportMenu.interchangeHelp": "For OpenKitchen3D, OpenLandscape3D, OpenCatio3D and the iPhone app. Opening another planner puts the whole plan in the link; nothing is uploaded.",
+  "exportMenu.interchangeHelp": "For OpenKitchen3D, OpenLandscape3D, OpenCatio3D and the iPhone app. Opening another planner puts the whole file in the link; nothing is uploaded. The file carries the plan's geometry only; the project package keeps the full plan.",
   "assistant.title": "Share with Assistant",
   "assistant.help": "Upload this project for seven days so an assistant such as Claude can summarize it, review its photos or build a contractor handoff.",
   "assistant.photos": "Include photos",

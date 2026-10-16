@@ -537,7 +537,7 @@ The **Export** button in the top bar opens:
 | **Download project package** | `openplan3d-project.zip` | "For iPhone and web. Includes retained original data and attachments, even when they are not shown here." See below |
 | **Share with Assistant…** | nothing downloaded | Uploads a copy for seven days and gives you a code and secret (section 14) |
 | **Other planners** → **Open in OpenLandscape3D**, **Open in OpenKitchen3D**, **Open in OpenCatio3D** | nothing downloaded; a new tab | Opens that planner with the whole plan in the link (see "Opening a plan in another planner" below) |
-| **Download interchange JSON** | `<Project-Name>-openplan3d.json` | "For OpenKitchen3D, OpenLandscape3D, OpenCatio3D and the iPhone app. Opening another planner puts the whole plan in the link; nothing is uploaded." Walls, doors, windows, furniture and room labels in metres, plus anything one of those planners stored in the file |
+| **Download interchange JSON** | `<Project-Name>-openplan3d.json` | "For OpenKitchen3D, OpenLandscape3D, OpenCatio3D and the iPhone app. Opening another planner puts the whole file in the link; nothing is uploaded. The file carries the plan's geometry only; the project package keeps the full plan." Walls, doors, windows, furniture and room labels in metres, plus anything one of those planners stored in the file |
 | **Import JSON** | — | Opens a `.json` or RoomPlan `.zip` as a new project (section 12) |
 | **Import project package** | — | Opens the same **Import project package** dialog as the library page (section 12); after **Import as copy** the editor switches to the imported copy |
 | **New Project** | — | Saves the current plan and opens an empty one |
@@ -634,11 +634,13 @@ file. Under the **Other planners** caption of the Export menu:
 The file carries walls, doors, windows, furniture, room names and colours and
 floor names, in metres. It does not carry stairs, columns, dimension or text
 notes, measurements, guides, entourage, background images, wall colours and
-textures or Item details; a curved wall travels as its straight chord, a
-sloping wall at its taller height, and door types other than single, double
-and sliding become the nearest of those. Anything a sibling planner stored in
-a file you imported (its cabinets, plants, areas or structures) is kept with
-your project and written back when you export, so a kitchen can go
+textures, Item details, **Open to floor below** or floor elevations and slab
+thicknesses (a plan that comes back through the file has a slab in every room
+and floors 300 cm apart on 5 cm slabs). A curved wall travels as its straight
+chord, a sloping wall at its taller height, and door types other than single,
+double and sliding become the nearest of those. Anything a sibling planner
+stored in a file you imported (its cabinets, plants, areas or structures) is
+kept with your project and written back when you export, so a kitchen can go
 OpenKitchen3D → OpenPlan3D → OpenKitchen3D without losing its cabinets — as
 long as you keep working from this project, its **Download JSON** or a library
 backup, not from a project package. OpenKitchen3D and OpenLandscape3D also

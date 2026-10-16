@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Project } from '$lib/models/types';
 import { createDefaultFloor, createDefaultProject } from '$lib/stores/project';
+import { floorElevations } from '$lib/utils/floors';
 import { getFurnitureSize } from '$lib/utils/furnitureCatalog';
 import { INTERCHANGE_BLOCK_KEYS, interchangeFileName, interchangeProjectName, projectToPreparedRoomPlan, sortedJson } from '$lib/utils/interchange';
 import { resolveRooms } from '$lib/utils/roomDetection';
@@ -90,6 +91,23 @@ describe('web project → prepared RoomPlan JSON → web project', () => {
     expect(back.floors[0].rooms[0].walls).toHaveLength(4);
     expect(back.floors[1].rooms.map(r => r.name)).toEqual(['Studio']);
     expect(back.interchange).toBeUndefined();
+  });
+
+  it('leaves floor openings, floor elevations and slab thicknesses out, as the format notes say', () => {
+    // docs/handoff-format-v1.md lists these as unrepresented; carrying them changes the family format.
+    const project = webProject();
+    project.floors[0].rooms[0].floorOpening = true;
+    Object.assign(project.floors[1], { elevation: 350, slabThickness: 25 });
+    const file: any = projectToPreparedRoomPlan(project);
+    expect(file.sections.map((section: any) => section.displayName)).toContain('Living Room');
+    expect(file.sections.filter((section: object) => 'floorOpening' in section)).toEqual([]);
+    expect(file.stories).toEqual([{ index: 0, name: 'Ground Floor' }, { index: 1, name: 'Upper' }]);
+
+    const back = createProjectFromRoomPlan(JSON.parse(JSON.stringify(file)), 'Back');
+    expect(back.floors[0].rooms[0].name).toBe('Living Room');
+    expect(back.floors[0].rooms[0].floorOpening).toBeUndefined();
+    expect(back.floors.map(floor => [floor.elevation, floor.slabThickness])).toEqual([[undefined, undefined], [undefined, undefined]]);
+    expect(floorElevations(back.floors).map(entry => entry.elevation)).toEqual([0, 300]);
   });
 
   it('writes the documented element fields', () => {
