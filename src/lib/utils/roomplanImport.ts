@@ -12,6 +12,7 @@ import { createDefaultProject, createDefaultFloor } from '$lib/stores/project';
 import { detectRooms, getRoomPolygon } from '$lib/utils/roomDetection';
 import { validateRoomPlan } from './roomplanValidation';
 import { importedFurnitureCategory } from './furnitureCategories';
+import { openingDropTarget } from './openingDrop';
 export { validateRoomPlan, isRoomPlanJson } from './roomplanValidation';
 
 function uid(): string {
@@ -97,6 +98,16 @@ function polygonCentroid(polygon: Point[]): Point {
   let x = 0, y = 0;
   for (const p of polygon) { x += p.x; y += p.y; }
   return { x: x / polygon.length, y: y / polygon.length };
+}
+
+/** Unsigned shoelace area of a ring; holes are not deducted. */
+function polygonArea(polygon: Point[]): number {
+  let sum = 0;
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i], b = polygon[(i + 1) % polygon.length];
+    sum += a.x * b.y - b.x * a.y;
+  }
+  return Math.abs(sum) / 2;
 }
 
 function getCategoryKey(cat: any): string {
@@ -540,6 +551,29 @@ function mergeEndpoints(walls: Wall[], mergeDistance: number): void {
   }
 }
 
+/**
+ * Corner merging pulls both endpoints of a wall shorter than the merge distance
+ * into one cluster, leaving start === end. Such a wall adds nothing to the plan
+ * and the project package exporter rejects it, so drop it and re-home any
+ * opening it carried as an opening drop at that spot would, or discard the
+ * opening when no wall remains within reach.
+ */
+function dropCollapsedWalls(walls: Wall[], openings: (Door | Window)[][]): void {
+  const collapsed = new Map(walls.filter(w => Math.hypot(w.end.x - w.start.x, w.end.y - w.start.y) < 1).map(w => [w.id, w] as const));
+  if (collapsed.size === 0) return;
+  const kept = walls.filter(w => !collapsed.has(w.id));
+  walls.splice(0, walls.length, ...kept);
+  for (const list of openings) {
+    for (let i = list.length - 1; i >= 0; i--) {
+      const gone = collapsed.get(list[i].wallId);
+      if (!gone) continue;
+      const target = openingDropTarget({ x: (gone.start.x + gone.end.x) / 2, y: (gone.start.y + gone.end.y) / 2 }, kept);
+      if (target) Object.assign(list[i], target);
+      else list.splice(i, 1);
+    }
+  }
+}
+
 export interface RoomPlanImportOptions {
   straighten?: boolean;
   orthogonal?: boolean;
@@ -709,6 +743,7 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = r
   } else if (options.straighten !== false) {
     straightenWalls(walls, options.angleTolerance ?? 5, md);
   }
+  if (options.orthogonal || options.straighten !== false) dropCollapsedWalls(walls, [doors, windows]);
 
   // Process sections (rooms).
   //
@@ -721,28 +756,43 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = r
     const polygons = detected.map(room => getRoomPolygon(room, walls));
     const claimed = new Set<number>();
 
-    for (let si = 0; si < rpSections.length; si++) {
-      const rs = rpSections[si];
+    // An anchor names the smallest cycle enclosing it, as the package bridge
+    // does for native rooms, so a walled island never takes its parent's name
+    // just because its section was listed first. A second label inside a cycle
+    // another label already named (an open-plan kitchen beside its living area)
+    // keeps that first name on the walls and becomes a wall-less metadata room;
+    // it must not take an unrelated neighbour and leave the neighbour's own
+    // label as the ghost.
+    const enclosing = sectionAnchors.map(anchor => {
+      let best = -1;
+      polygons.forEach((poly, di) => {
+        if (poly.length >= 3 && pointInPolygon(anchor, poly) && (best < 0 || polygonArea(poly) < polygonArea(polygons[best]))) best = di;
+      });
+      return best;
+    });
+    const matched = enclosing.map(() => -1);
+    enclosing.forEach((di, si) => {
+      if (di >= 0 && !claimed.has(di)) { claimed.add(di); matched[si] = di; }
+    });
+    // Nothing encloses it (open-plan capture, or a label nudged outside): fall
+    // back to the nearest room no label claimed so the name isn't lost. Every
+    // enclosed label is settled first, so a stray one never takes a room away
+    // from the label sitting inside it.
+    enclosing.forEach((di, si) => {
+      if (di >= 0) return;
       const anchor = sectionAnchors[si];
-
-      let matchIndex = polygons.findIndex(
-        (poly, di) => !claimed.has(di) && poly.length >= 3 && pointInPolygon(anchor, poly)
-      );
-      // Nothing encloses it (open-plan capture, or a label nudged outside):
-      // fall back to the nearest unclaimed room so the name isn't lost.
-      if (matchIndex < 0) {
-        let bestDistance = Infinity;
-        for (let di = 0; di < detected.length; di++) {
-          if (claimed.has(di) || polygons[di].length < 3) continue;
-          const c = polygonCentroid(polygons[di]);
-          const d = Math.hypot(c.x - anchor.x, c.y - anchor.y);
-          if (d < bestDistance) { bestDistance = d; matchIndex = di; }
-        }
+      let bestDistance = Infinity;
+      for (let ci = 0; ci < detected.length; ci++) {
+        if (claimed.has(ci) || polygons[ci].length < 3) continue;
+        const c = polygonCentroid(polygons[ci]);
+        const d = Math.hypot(c.x - anchor.x, c.y - anchor.y);
+        if (d < bestDistance) { bestDistance = d; matched[si] = ci; }
       }
+      if (matched[si] >= 0) claimed.add(matched[si]);
+    });
 
-      const source = matchIndex >= 0 ? detected[matchIndex] : undefined;
-      if (matchIndex >= 0) claimed.add(matchIndex);
-
+    rpSections.forEach((rs, si) => {
+      const source = matched[si] >= 0 ? detected[matched[si]] : undefined;
       rooms.push({
         id: source?.id ?? uid(),
         name: rs.displayName || mapSectionLabel(rs.label),
@@ -751,7 +801,7 @@ export function importRoomPlan(jsonData: any, options: RoomPlanImportOptions = r
         area: source?.area ?? 0,
         ...(rs.color ? { color: rs.color } : {}),
       });
-    }
+    });
   }
 
   return {
