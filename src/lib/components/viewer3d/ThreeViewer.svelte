@@ -34,7 +34,8 @@
   import type { FurnitureDef } from '$lib/utils/furnitureCatalog';
   import { createWallHighlight } from '$lib/utils/wallHighlight';
   import { applyWallXray } from '$lib/utils/wallXray';
-  import { disposeModel, ownTexture } from '$lib/utils/furnitureModelResources';
+  import { disposeModel } from '$lib/utils/furnitureModelResources';
+  import { ownColorCanvasTexture } from '$lib/utils/viewerTextures';
   import { createFurnitureModelWithGLB, createPlacedFurnitureModel } from '$lib/utils/furnitureModelLoader';
   import { addFurniture } from '$lib/stores/project';
   import { detectRooms, resolveRoomGeometry, getRoomPolygon, roomCentroid, roomLabelPosition } from '$lib/utils/roomDetection';
@@ -620,7 +621,7 @@
         cx.strokeRect(x + offset, y, 62, 30);
       }
     }
-    const tex = ownTexture(new THREE.CanvasTexture(c));
+    const tex = ownColorCanvasTexture(c);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.repeat.set(10, 10);
     return tex;
@@ -703,7 +704,7 @@
     grad.addColorStop(1.0, '#b8b0a0');
     cx.fillStyle = grad;
     cx.fillRect(0, 0, 4, 512);
-    skyTexture = ownTexture(new THREE.CanvasTexture(skyCanvas));
+    skyTexture = ownColorCanvasTexture(skyCanvas);
     // Use as scene background (maps onto equirectangular projection)
     skyTexture.mapping = THREE.EquirectangularReflectionMapping;
     scene.background = skyTexture;
@@ -745,7 +746,7 @@
     for (let y = 0; y <= 1024; y += gridStep * 4) {
       gctx.beginPath(); gctx.moveTo(0, y); gctx.lineTo(1024, y); gctx.stroke();
     }
-    const groundTex = ownTexture(new THREE.CanvasTexture(groundCanvas));
+    const groundTex = ownColorCanvasTexture(groundCanvas);
     groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
     groundTex.repeat.set(groundSize / 4000, groundSize / 4000);
     const groundMat = new THREE.MeshStandardMaterial({
@@ -1016,11 +1017,11 @@
       const cx = c.getContext('2d')!;
       cx.fillStyle = color;
       cx.fillRect(0, 0, 64, 64);
-      const tex = ownTexture(new THREE.CanvasTexture(c));
+      const tex = ownColorCanvasTexture(c);
       tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
       return tex;
     }
-    const tex = ownTexture(new THREE.CanvasTexture(canvas));
+    const tex = ownColorCanvasTexture(canvas);
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     // Each texture tile covers ~200cm of real wall
     const tileSizeCm = 200;
@@ -1531,7 +1532,7 @@
         const floorMat = getMaterial(room.floorTexture);
         const floorCanvas = getFloorTextureCanvas(room.floorTexture);
         if (floorCanvas) {
-          const tex = ownTexture(new THREE.CanvasTexture(floorCanvas));
+          const tex = ownColorCanvasTexture(floorCanvas);
           tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
           // Tile every 200cm — now UVs are 0-1, so repeat = room size / tile size
           const tileSizeCm = 200;
@@ -1586,7 +1587,7 @@
       ctx2.fillStyle = '#d1d5db';
       ctx2.fillText(formatArea(room.area, get(projectSettings).units), 128, 50);
 
-      const tex = ownTexture(new THREE.CanvasTexture(canvas));
+      const tex = ownColorCanvasTexture(canvas);
       const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
       const sprite = new THREE.Sprite(spriteMat);
       sprite.position.set(centroid.x, 30, centroid.y);
@@ -1656,7 +1657,7 @@
     ctx.textAlign = 'center';
     ctx.fillText(name, 128, 32);
 
-    const tex = ownTexture(new THREE.CanvasTexture(canvas));
+    const tex = ownColorCanvasTexture(canvas);
     const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
     const sprite = new THREE.Sprite(spriteMat);
 
