@@ -163,8 +163,14 @@ export function createLocalStore(): DataStore {
     },
 
     async duplicate(id) {
-      const original = await this.load(id);
-      if (!original) return null;
+      // Copying is not opening, so this tab's record of the original stays as it is: a save the
+      // editor queued on the way out must still land, not fail as a conflict. Waiting for queued
+      // library writes first lets the copy include those edits.
+      await mutateLibrary(async () => {});
+      const raw = await readRecord('projects', id);
+      if (raw === null) return null;
+      const original = readProject(JSON.parse(raw));
+      if (original.id !== id) throw new Error('The saved project ID does not match its library entry. Download a library backup before recovery.');
       const dup = await this.saveCopy(original, 'Copy');
       const thumb = await this.getThumbnail(id);
       if (thumb) await this.saveThumbnail(dup.id, thumb);
