@@ -89,12 +89,13 @@ are retained for re-export (§1) but never change the imported geometry.
 
 - Every entry of `walls`, `doors`, `windows`, `openings` and `objects` needs a nonempty `identifier` that is unique
   across all five lists (it becomes the web id), `dimensions: [width, height, depth]` in metres (width and height > 0,
-  depth ≥ 0, objects need depth > 0) and `transform`: exactly 16 finite numbers, column-major, translation at indices
+  except a wall's length, see Walls; depth ≥ 0, objects need depth > 0) and `transform`: exactly 16 finite numbers, column-major, translation at indices
   12–14, and a nonzero ground direction `(transform[0], transform[2])`. `story` is an optional integer, default 0.
 - Walls: centre = translation (x, z); direction = `(t[0], t[2])` normalised; length = `dimensions[0]`;
   `start = centre - dir*len/2`, `end = centre + dir*len/2`. Height = `dimensions[1]`; thickness = `dimensions[2]`
   (0 → 15 cm). For a wall from `(x1,z1)` to `(x2,z2)` with unit direction `(dx,dz)` write
-  `transform = [dx,0,dz,0, 0,1,0,0, -dz,0,dx,0, cx,h/2,cz,1]`.
+  `transform = [dx,0,dz,0, 0,1,0,0, -dz,0,dx,0, cx,h/2,cz,1]`. Write every wall at least 1 cm long. Length 0 is
+  accepted only because shipped iPhone builds send it; such a wall is dropped on import with its doors and windows.
 - Doors, windows, openings: `parentIdentifier` must name a wall on the same `story`; the web `position` is the
   translation projected onto that wall (clamped to 0–1). Door `style` ∈ single, double, sliding, patio (patio → web
   sliding); without `style` the `category` decides (`door` → single, `doubleDoor`/`french` → double, `slidingDoor` →
