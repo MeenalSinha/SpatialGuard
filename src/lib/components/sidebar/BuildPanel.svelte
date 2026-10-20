@@ -39,7 +39,8 @@
   // RoomPlan import dialog state
   let showImportDialog = $state(false);
   let importFileName = $state('');
-  let importJsonData: any = $state(null);
+  // Raw, not deep state: the import structured-clones parts of the scan, and a reactive proxy cannot be cloned.
+  let importJsonData: any = $state.raw(null);
   let optStraighten = $state(true);
   let optOrthogonal = $state(true);
   let optMergeDistance = $state(15);
