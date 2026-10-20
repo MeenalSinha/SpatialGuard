@@ -1,9 +1,10 @@
 # OpenPlan3D status
 
-Last verified: **October 16, 2026** (local unit suite, type check, build and
-chromium browser runs on `fix/editor-defects-3`; full three-engine browser CI on
-PRs #107–#112; production rollout, CORS preflight and the Storage rules cutover
-checked; see below).
+Last verified: **October 20, 2026** (UTC): local unit suite, type check, build
+and three-engine import specs on `fix/roomplan-import-clone` (#119), and CI and
+the App Hosting rollout for the merge of #115. Earlier, on October 16: full
+three-engine browser CI on PRs #107–#112; production rollout, CORS preflight
+and the Storage rules cutover checked; see below.
 
 ## Current delivery — October 16
 
@@ -40,10 +41,23 @@ At 16:30 UTC the Storage rules cutover was deployed through the Firebase Rules
 API: ruleset `a1d5ef29…` replaced the legacy `4dd57b5d…`. Production checks
 returned 403 for anonymous direct uploads, ledger reads and inbox listing. A
 synthetic endpoint share returned 201, and reading its code returned 200. #115
-commits the same `storage.rules` to `main`; see the
-[cutover record](docs/handoff-quotas.md#cutover-record). Issue #30 is closed.
+put the same `storage.rules` on `main`; the owner merged it on October 20 at
+01:48 UTC (`46aa9d2`), and its 23 checks and App Hosting rollout succeeded. See
+the [cutover record](docs/handoff-quotas.md#cutover-record). Issue #30 is closed.
 Budget alerts moved to #116, and physical-iPhone QA moved to
 [openplan3d-ios#47](https://github.com/laanlabs/openplan3d-ios/issues/47).
+
+### RoomPlan import from the Build tab (issue #118)
+
+Reported October 17: Build > Import RoomPlan failed with "could not be cloned"
+for any scan whose objects carry RoomPlan `attributes`, including the
+repository's own `test-roomplan.json`, with either target. It was a regression
+from the October 15 interchange work, which structured-clones those
+attributes; the dialog held the parsed file in deep reactive state, and a proxy
+cannot be cloned. #119 holds the file in `$state.raw` and adds a spec that
+imports the sample both ways. Import JSON, the welcome screen and
+`/editor?import=CODE` handoffs were not affected. **#119 awaits the owner's
+merge.**
 
 ## Goal and overall state
 
@@ -56,9 +70,11 @@ Storage rules cutover was deployed and verified (#115). Its owner tasks moved
 to #116 (billing budget alerts) and
 [openplan3d-ios#47](https://github.com/laanlabs/openplan3d-ios/issues/47)
 (physical-iPhone QA). #105 (publish the iOS repository) needs the owner.
-Broader fidelity work and physical-device testing remain open.
+#118, a Build-tab import regression reported on October 17, is fixed in #119,
+which awaits merge. Broader fidelity work and physical-device testing remain
+open.
 
-Web `main` is at `4e66c60` (the merge of #114).
+Web `main` is at `46aa9d2` (the merge of #115).
 
 This is the concise, maintained status page. Update it as implementation,
 validation, blockers, or priorities change during the goal. Keep the full scope
@@ -71,7 +87,7 @@ Remote state was checked when preparing this report.
 
 | Repository | Branch | Latest implementation checkpoint | Delivery |
 | --- | --- | --- | --- |
-| Web app: `openPlan3D` | `main` | `4e66c60` — merge of #114, after #107–#113 | **Merged and live** (App Hosting rollouts succeeded October 16) |
+| Web app: `openPlan3D` | `main` | `46aa9d2` — merge of #115, after #107–#114 | **Merged and live** (App Hosting rollouts succeeded October 16 and 20); #119 open |
 | Native app: `openplan3d-ios` | `marketing/youtube-shorts-drawing` | `f2c6ea1` — marketing Shorts; no native code change in this batch | Clean checkout; the earlier `codex/local-floorplan-render` work (`bdaad71`) is unchanged |
 | Website: `openplan3d-www` | `main` | `dfdb9ec` — lists OpenLandscape3D, OpenKitchen3D and OpenCatio3D, with an FAQ entry on the exchange | **Pushed and live** on openplan3d.com |
 
