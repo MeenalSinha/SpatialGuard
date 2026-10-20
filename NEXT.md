@@ -4,6 +4,32 @@ The user-facing goal status is maintained in [STATUS.md](STATUS.md). Update it
 when implementation, validation, blockers or next priorities change; keep this
 file as the detailed backlog and evidence history.
 
+## Build-tab RoomPlan import regression (issue #118) — October 20
+
+Branch `fix/roomplan-import-clone` (PR #119). Build > Import RoomPlan failed
+with "Failed to execute 'structuredClone' on 'Window': #<Object> could not be
+cloned" on both targets whenever a scan's objects carried RoomPlan
+`attributes`. The repository's own `test-roomplan.json` has eight. Since
+`87352c97` (October 15), `interchangeStateFromRoomPlan` structured-clones those
+attributes and any sibling block so they survive to export. The dialog kept the
+parsed file in deep `$state`, so the importer received a proxy. The dialog only
+replaces the file, so it now holds it in `$state.raw`, the idiom the restore
+and package dialogs use; its checks against a newer file still work.
+
+- `tests/browser/roomplan-import-attributes.spec.ts` imports the sample both
+  ways and checks that the attributes reach the JSON export. It failed on the
+  previous build with the reported toast and passes on all three engines. The
+  older import specs all load `tests/fixtures/handoff-roomplan.json`, which has
+  no attributes.
+- Not affected: Import JSON (top bar), the welcome screen and
+  `/editor?import=CODE` handoffs, which pass a plain value. None of the other
+  deep `$state` objects in the components reaches `structuredClone`: each is
+  display-only or passes on ids and primitives, and project data is read from
+  the stores. The Share dialog already snapshots its project (#112).
+- Validation: `npm run check` clean; `npm test` 1,579 passed; the seven specs
+  that drive RoomPlan import (84 runs) pass on Chromium, Firefox and WebKit.
+  The rest of the browser suite runs in CI.
+
 ## Eighteen more hunt defects, a review round and issue #101 — October 16
 
 Branch `fix/editor-defects-3` (PR #112, stacked on #110). **Merged and deployed October 16**, with #107–#110: all five App Hosting rollouts succeeded, and the live handoff preflight returns 204 for the sibling origins. The 21 lower-ranked
