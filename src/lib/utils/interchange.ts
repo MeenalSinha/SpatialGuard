@@ -50,7 +50,7 @@ type Json = Record<string, unknown>;
 /** Eight decimals in metres; `+ 0` turns −0 into 0 so files round-trip byte for byte. */
 const r8 = (value: number) => Math.round(value * 1e8) / 1e8 + 0;
 const metres = (cm: number) => r8(cm / 100);
-/** validateRoomPlan rejects zero sizes; anything under a centimetre exports as 1 cm. */
+/** validateRoomPlan rejects zero sizes and the importer drops walls of length 0, so anything under a centimetre exports as 1 cm. */
 const positive = (m: number) => Math.max(0.01, m);
 const plain = (value: unknown): value is Json => value !== null && typeof value === 'object' && !Array.isArray(value);
 

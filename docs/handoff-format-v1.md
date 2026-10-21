@@ -64,6 +64,15 @@ dimensions/transforms, valid identifiers and parent references, integral floors,
 room anchors, supported styles and typed import choices. A malformed element
 rejects the whole import with a visible error, leaving the current project open.
 
+One exception keeps shipped iPhone builds sharing: a wall may have length
+(`dimensions[0]`) 0. Their editor can drag a wall's two ends onto one point and
+still exports the wall; the phone shows it as a dot and does not draw its doors
+or windows. Such a wall has no direction or extent, so the importer leaves it out
+with its openings, as it does a wall shorter than a micrometre (rounding). Every
+longer wall imports as before. Producers should write every wall at least 1 cm
+long, as the web exporter does. A refused size names what is wrong, for example
+`walls[3].dimensions must have a positive height`.
+
 A raw-capture ZIP must contain exactly one `room.json`. A dataset with `plan.json`
 is rejected with instructions to export Editable Plan JSON: importing its raw
 `room.json` would silently discard the iPhone edits. Full dataset archives remain
