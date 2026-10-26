@@ -406,4 +406,23 @@ SpatialGuard integrates geometry verification into a full 9-stage DevSecOps rele
 - **DevSecOps Architecture & Specification:** See [docs/spatialguard/PHASE4_DEVSECOPS_RELEASE.md](docs/spatialguard/PHASE4_DEVSECOPS_RELEASE.md).
 - **Release Verification Test Suite:** Verified via `tests/spatialguard/release.test.ts` (18 scenarios).
 
+### Production Operations, Runtime Observability & Safe Recovery (Phase 5 Implemented)
+
+SpatialGuard actively monitors live deployed environments and manages safe, supervised recovery:
+
+1. **Runtime Identity & Native Endpoints (`src/routes/health`, `src/routes/api/version`):**  
+   - Native SvelteKit endpoints exposing real runtime health status, uptime, active Git commit SHA, and pipeline ID.
+2. **Live Remote Verification (`src/lib/spatialguard/operations/liveVerifier.ts`):**  
+   - Probes live staging and production instances, auditing security headers and detecting runtime version drift without false-success fallbacks.
+3. **Incident Correlation & Alert Spam Prevention (`src/lib/spatialguard/operations/incidentCorrelator.ts`):**  
+   - Clusters repetitive outages using SHA-256 failure fingerprints, tracking incident occurrences and marking status `RECOVERED` upon verified health restoration.
+4. **Structured Operational Reporting:**  
+   - Generates machine-readable `OperationalReport` artifacts linking target URLs, response latencies, endpoint breakdowns, and active incidents.
+5. **Safe Supervised Recovery & Rollback (`src/lib/spatialguard/operations/recoveryEngine.ts`):**  
+   - Evaluates unhealthy deployments and formulates rollback recommendations targeting only verified release candidates (`releaseDecision === 'PASS'`).
+   - Strictly enforces the human approval boundary (`requiresHumanApproval: true`), preventing autonomous unapproved production modifications.
+
+- **Operations Architecture & Specification:** See [docs/spatialguard/PHASE5_OPERATIONS.md](docs/spatialguard/PHASE5_OPERATIONS.md).
+- **Operations & Recovery Test Suite:** Verified via `tests/spatialguard/operations.test.ts` (12 scenarios).
+
 ---

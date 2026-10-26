@@ -212,23 +212,20 @@ export class EvidenceCollector {
       blockingFindings.push(...params.stagingVerification.reasons);
     }
 
+    // Collect all gates to avoid compiler narrowing false-positives
+    const gates: ReleaseGateDecision[] = [
+      applicationGate,
+      spatialGate,
+      securityGate,
+      integrityGate,
+      stagingGate
+    ];
+
     // Overall Release Decision
     let releaseDecision: ReleaseGateDecision = 'PASS';
-    if (
-      applicationGate === 'FAIL' ||
-      spatialGate === 'FAIL' ||
-      securityGate === 'FAIL' ||
-      integrityGate === 'FAIL' ||
-      stagingGate === 'FAIL'
-    ) {
+    if (gates.includes('FAIL')) {
       releaseDecision = 'FAIL';
-    } else if (
-      applicationGate === 'INCONCLUSIVE' ||
-      spatialGate === 'INCONCLUSIVE' ||
-      securityGate === 'INCONCLUSIVE' ||
-      integrityGate === 'INCONCLUSIVE' ||
-      stagingGate === 'INCONCLUSIVE'
-    ) {
+    } else if (gates.includes('INCONCLUSIVE')) {
       releaseDecision = 'INCONCLUSIVE';
     }
 

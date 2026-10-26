@@ -45,19 +45,38 @@ export class StagingDeployer {
 
     for (const ep of targetEndpoints) {
       const fullUrl = `${options.stagingUrl.replace(/\/$/, '')}${ep.path}`;
-      let statusCode = 200;
-      let responseTimeMs = 45;
-      let headers: Record<string, string> = {
-        'content-type': 'text/html; charset=utf-8',
-        'x-content-type-options': 'nosniff',
-        'x-frame-options': 'SAMEORIGIN'
-      };
+      let statusCode = 0;
+      let responseTimeMs = 0;
+      let headers: Record<string, string> = {};
 
       if (options.mockHttpResponder) {
         const res = options.mockHttpResponder(ep.path);
         statusCode = res.statusCode;
         responseTimeMs = res.responseTimeMs;
         if (res.headers) headers = res.headers;
+      } else {
+        // Genuine production verification path: Make real HTTP request
+        try {
+          const startTime = Date.now();
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
+          const response = await fetch(fullUrl, {
+            method: 'GET',
+            signal: controller.signal,
+            headers: { 'Accept': 'text/html,application/json' }
+          });
+          clearTimeout(timeoutId);
+          statusCode = response.status;
+          responseTimeMs = Date.now() - startTime;
+          headers = {};
+          response.headers.forEach((val, key) => {
+            headers[key] = val;
+          });
+        } catch (fetchErr: any) {
+          statusCode = 0; // Network unreachable or timed out
+          responseTimeMs = 0;
+          headers = {};
+        }
       }
 
       const passed = statusCode >= 200 && statusCode < 400;
