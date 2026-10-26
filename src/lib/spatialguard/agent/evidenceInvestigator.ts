@@ -30,8 +30,8 @@ interface VitestJsonReport {
   }>;
 }
 
-function extractInvariantId(title: string, ancestors: string[]): string {
-  const combined = [...ancestors, title].join(' ');
+function extractInvariantId(title: string = '', ancestors: string[] = []): string {
+  const combined = [...(ancestors || []), title || ''].join(' ');
   const match = combined.match(/INV-[A-Z]+-\d+/);
   return match ? match[0] : 'INV-UNKNOWN';
 }
@@ -191,7 +191,7 @@ export function investigateSpatialEvidence(
 
     for (const suite of vitestReport.testResults) {
       for (const assertion of suite.assertionResults) {
-        const invId = extractInvariantId(assertion.title, assertion.ancestorTitles);
+        const invId = extractInvariantId(assertion.title || assertion.fullName, assertion.ancestorTitles);
         if (invId !== 'INV-UNKNOWN') evaluatedInvariants.add(invId);
 
         if (assertion.status === 'failed') {

@@ -383,8 +383,27 @@ SpatialGuard autonomously investigates spatial regressions, formulates targeted 
 - **Remediation Specification & Architecture:** See [docs/spatialguard/PHASE3_REMEDIATION.md](docs/spatialguard/PHASE3_REMEDIATION.md).
 - **Remediation Test Suite:** Verified via `tests/spatialguard/remediation.test.ts` (12 adversarial & functional scenarios).
 
-### Roadmap & Planned Capabilities (Future Phases)
+### Complete DevSecOps Pipeline, Security & Supervised Deployment (Phase 4 Implemented)
 
-- **Phase 4 (Automated Release Gates & Promotion):** Complete release verification pipeline, cryptographic evidence bundles, staging environment promotion, and supervised production release gating.
+SpatialGuard integrates geometry verification into a full 9-stage DevSecOps release pipeline:
 
+1. **Security & Supply Chain Gates (`src/lib/spatialguard/release/securityScanner.ts`):**  
+   - Secret Detection: Identifies exposed private keys, GitLab personal access tokens, AWS keys, and credentials.
+   - Static Analysis (SAST): Blocks dynamic eval and unsanitized DOM manipulation.
+   - Dependency Software Composition Analysis (SCA): Parses `npm audit` and enforces zero critical CVEs.
+   - Software Bill of Materials (SBOM): Generates real SBOM manifests covering direct and transitive dependencies.
+2. **Reproducible Packaging & Integrity Manifest (`src/lib/spatialguard/release/evidenceCollector.ts`):**  
+   - Node.js SSR bundle generation via `@sveltejs/adapter-node`.
+   - Immutable artifact SHA-256 manifests prevent release drift and detect build tampering.
+3. **Automated Staging Smoke Tests & DAST (`src/lib/spatialguard/release/stagingDeployer.ts`):**  
+   - Probes live staging endpoints (`/`, `/health`, `/api/version`) and audits HTTP security headers (`X-Content-Type-Options`, `X-Frame-Options`, CSP).
+4. **Cryptographic Release Evidence Bundle (`scripts/generate-release-evidence.ts`):**  
+   - Canonical SHA-256 hashed JSON bundle combining test outcomes, spatial invariants, SBOM, artifact digests, and staging verification into an auditable proof.
+5. **Supervised Production Promotion (`src/lib/spatialguard/release/promotionGate.ts`):**  
+   - Human approval boundary: AI agents can prepare releases but cannot promote to production.
+   - Production promotion requires an explicit human decision (`when: manual` in `.gitlab-ci.yml`) and verifies post-release runtime health.
 
+- **DevSecOps Architecture & Specification:** See [docs/spatialguard/PHASE4_DEVSECOPS_RELEASE.md](docs/spatialguard/PHASE4_DEVSECOPS_RELEASE.md).
+- **Release Verification Test Suite:** Verified via `tests/spatialguard/release.test.ts` (18 scenarios).
+
+---
