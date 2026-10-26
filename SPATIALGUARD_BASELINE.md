@@ -19,12 +19,14 @@ Phase 0 establishes an evidence-based baseline of the actual repository, archite
 ## 2. Repository and Fork Information
 
 - **Original Project:** [laanlabs/openPlan3D](https://github.com/laanlabs/openPlan3D) (originally named `open3dfloorplan` by `theLodgeStudio`)
-- **Fork Repository:** [MeenalSinha/SpatialGuard](https://github.com/MeenalSinha/SpatialGuard)
-- **Git Remote (origin):** `https://github.com/MeenalSinha/SpatialGuard`
+- **Fork Repository (GitHub):** [MeenalSinha/SpatialGuard](https://github.com/MeenalSinha/SpatialGuard)
+- **GitLab Repository (Hackathon):** [MeenalSinha/SpatialGuard](https://gitlab.com/MeenalSinha/SpatialGuard) (Project ID: `88114081`)
+- **Git Remotes:**
+  - `origin`: `https://github.com/MeenalSinha/SpatialGuard`
+  - `gitlab`: `https://gitlab.com/MeenalSinha/SpatialGuard.git`
 - **Active Branch:** `main`
-- **Current Head Commit:** `98f9cb4` (*Merge pull request #124 from laanlabs/fix/vite-vitest-advisories*)
-- **Target Branch for Delivery:** `main`
-- **Pre-existing Working Tree State:** Clean, up-to-date with `origin/main`. No user stashes, untracked changes, or dangling edits were discarded or modified.
+- **Delivery Commit:** `0bd1050`
+- **Pre-existing Working Tree State:** Clean, up-to-date with both remotes. No user stashes, untracked changes, or dangling edits were discarded or modified.
 
 ---
 
