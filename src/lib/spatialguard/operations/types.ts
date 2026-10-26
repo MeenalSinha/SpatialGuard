@@ -25,6 +25,7 @@ export interface LiveVerificationTarget {
   expectedVersion?: string;
   expectedCommitSha?: string;
   timeoutMs?: number;
+  spatialCapabilityChecker?: (baseUrl: string) => Promise<boolean>;
 }
 
 export interface EndpointCheckResult {

@@ -66,10 +66,23 @@ export class RecoveryEngine {
       };
     }
 
+    const targetVersion = lastKnownGoodBundle.sbomManifest?.packageVersion;
+    if (!targetVersion) {
+      blockers.push('Candidate bundle contains no valid version metadata in SBOM.');
+      return {
+        action: 'INVESTIGATE_ONLY',
+        targetReleaseSha: lastKnownGoodBundle.commitSha,
+        justification: 'Rollback blocked: candidate bundle lacks verified version metadata.',
+        requiresHumanApproval: true,
+        verifiedArtifactAvailable: false,
+        blockers
+      };
+    }
+
     return {
       action: 'ROLLBACK',
       targetReleaseSha: lastKnownGoodBundle.commitSha,
-      targetReleaseVersion: lastKnownGoodBundle.sbomManifest?.packageVersion || '0.9.0',
+      targetReleaseVersion: targetVersion,
       justification: `Application at ${verification.targetUrl} failed health verification (${verification.failures.join(', ')}). Recommend rolling back to verified commit ${lastKnownGoodBundle.commitSha}.`,
       requiresHumanApproval: true,
       verifiedArtifactAvailable: true,
@@ -78,7 +91,7 @@ export class RecoveryEngine {
   }
 
   /**
-   * Executes a recovery action if human approval is confirmed
+   * Executes a recovery action if human approval is confirmed and executor is provided
    */
   public static executeSupervisedRecovery(
     recommendation: RecoveryRecommendation,
@@ -106,17 +119,18 @@ export class RecoveryEngine {
       });
     }
 
-    if (recoveryExecutor && recommendation.targetReleaseSha) {
-      return recoveryExecutor(recommendation.targetReleaseSha).then(res => {
-        return {
-          status: res.success ? 'EXECUTED' : 'FAILED',
-          error: res.error
-        };
+    if (!recoveryExecutor || !recommendation.targetReleaseSha) {
+      return Promise.resolve({
+        status: 'FAILED',
+        error: 'No active deployment recovery executor provided to perform the rollback operation.'
       });
     }
 
-    return Promise.resolve({
-      status: 'EXECUTED'
+    return recoveryExecutor(recommendation.targetReleaseSha).then(res => {
+      return {
+        status: res.success ? 'EXECUTED' : 'FAILED',
+        error: res.error
+      };
     });
   }
 }

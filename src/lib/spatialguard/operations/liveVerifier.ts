@@ -125,6 +125,25 @@ export class LiveVerifier {
       overallStatus = 'DEGRADED';
     }
 
+    // Verify genuine spatial capability if a checker function is supplied
+    let spatialCapabilityFunctional = false;
+    if (overallStatus === 'HEALTHY' && target.spatialCapabilityChecker) {
+      try {
+        spatialCapabilityFunctional = await target.spatialCapabilityChecker(baseUrl);
+        if (!spatialCapabilityFunctional) {
+          failures.push('Spatial capability verification failed: CAD geometry or editor operations non-functional');
+          overallStatus = 'UNHEALTHY';
+        }
+      } catch (spatialErr: any) {
+        spatialCapabilityFunctional = false;
+        failures.push(`Spatial verification error: ${spatialErr.message || 'Check failed'}`);
+        overallStatus = 'UNHEALTHY';
+      }
+    } else if (overallStatus === 'HEALTHY' && !target.spatialCapabilityChecker) {
+      // Basic HTTP health verified, but spatial functionality is unverified
+      spatialCapabilityFunctional = false;
+    }
+
     return {
       targetUrl: baseUrl,
       checkedAt: new Date().toISOString(),
@@ -133,7 +152,7 @@ export class LiveVerifier {
       versionMatch,
       endpointChecks,
       securityHeadersValid,
-      spatialCapabilityFunctional: overallStatus === 'HEALTHY',
+      spatialCapabilityFunctional,
       failures
     };
   }

@@ -57,8 +57,8 @@ graph TD
 ## 4. Operational Endpoints & Verification
 
 ### 4.1 Native SvelteKit Endpoints
-- **`/health` ([src/routes/health/+server.ts](file:///c:/Users/Meenal%20Sinha/Downloads/SpatialGuard/src/routes/health/+server.ts)):** Returns service status, version, uptime, and no-cache/nosniff headers.
-- **`/api/version` ([src/routes/api/version/+server.ts](file:///c:/Users/Meenal%20Sinha/Downloads/SpatialGuard/src/routes/api/version/+server.ts)):** Exposes active commit SHA, pipeline ID, package version, and environment.
+- **`/health` ([src/routes/health/+server.ts](../../src/routes/health/+server.ts)):** Returns service status, version, uptime, and no-cache/nosniff headers.
+- **`/api/version` ([src/routes/api/version/+server.ts](../../src/routes/api/version/+server.ts)):** Exposes active commit SHA, pipeline ID, package version, and environment.
 
 ### 4.2 Status Semantics
 - **`HEALTHY`:** All endpoints return HTTP 200–399, security headers match, and deployed commit SHA matches the verified release.
@@ -85,6 +85,6 @@ All test suites executed locally and verified:
 | :--- | :--- | :--- | :--- |
 | **Type Check** | `npx svelte-check --tsconfig ./tsconfig.json` | Whole codebase | **0 errors, 0 warnings** |
 | **Baseline Tests** | `npm test` | 167 test files | **1630 / 1630 passed (100%)** |
-| **Spatial Verification Suite**| `npm run test:spatial` | 5 test files | **64 / 64 passed (100%)** |
-| **Operations Engine Suite** | `npx vitest run tests/spatialguard/operations.test.ts`| Operations & Recovery | **12 / 12 passed (100%)** |
+| **Spatial Verification Suite**| `npm run test:spatial` | 5 test files | **65 / 65 passed (100%)** |
+| **Operations Engine Suite** | `npx vitest run tests/spatialguard/operations.test.ts`| Operations & Recovery | **13 / 13 passed (100%)** |
 | **Release Evidence CLI** | `npx tsx scripts/generate-release-evidence.ts` | Real Git & Reports | **Generated `release-evidence.json`** |

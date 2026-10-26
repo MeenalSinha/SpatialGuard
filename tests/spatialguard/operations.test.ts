@@ -327,7 +327,7 @@ describe('SpatialGuard Phase 5 — Production Operations, Runtime Verification &
       expect(result.error).toContain('explicit human approval');
     });
 
-    it('executes recovery when human approval is confirmed', async () => {
+    it('fails safely when human approval is confirmed but no recovery executor is provided', async () => {
       const recommendation: RecoveryRecommendation = {
         action: 'ROLLBACK',
         targetReleaseSha: PREVIOUS_COMMIT,
@@ -337,7 +337,23 @@ describe('SpatialGuard Phase 5 — Production Operations, Runtime Verification &
         blockers: []
       };
 
-      // Confirmed human approval
+      // Confirmed human approval, but executor omitted
+      const result = await RecoveryEngine.executeSupervisedRecovery(recommendation, true);
+      expect(result.status).toBe('FAILED');
+      expect(result.error).toContain('No active deployment recovery executor');
+    });
+
+    it('executes recovery when human approval is confirmed and executor is provided', async () => {
+      const recommendation: RecoveryRecommendation = {
+        action: 'ROLLBACK',
+        targetReleaseSha: PREVIOUS_COMMIT,
+        justification: 'Critical failure',
+        requiresHumanApproval: true,
+        verifiedArtifactAvailable: true,
+        blockers: []
+      };
+
+      // Confirmed human approval with active executor
       const result = await RecoveryEngine.executeSupervisedRecovery(
         recommendation,
         true,
