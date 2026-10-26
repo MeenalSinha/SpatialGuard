@@ -1,0 +1,108 @@
+# GitLab Duo Agent Platform — Custom Flow Definition
+# Flow: spatialguard-investigate
+# Purpose: Orchestrates SpatialGuard's 3-agent spatial verification, investigation, and release assessment.
+
+version: "1.0"
+name: spatialguard-investigate
+description: "Evidence-driven spatial quality engineering: change analysis, geometry failure investigation, and release readiness assessment for OpenPlan3D."
+
+# Trigger specification: can run automatically on pipeline failure / MR updates, or on-demand via Duo chat / MR note.
+triggers:
+  - event: pipeline.finished
+    condition: "pipeline.status == 'failed' || pipeline.has_job('spatial-verification')"
+  - event: merge_request.updated
+    condition: "merge_request.draft == false"
+  - manual:
+      command: "/spatialguard investigate"
+      description: "Trigger on-demand spatial verification and failure investigation on the current merge request."
+
+# Context provided by GitLab Duo runtime executor
+context:
+  project_id: "${CI_PROJECT_ID}"
+  commit_sha: "${CI_COMMIT_SHA}"
+  mr_iid: "${CI_MERGE_REQUEST_IID}"
+  pipeline_id: "${CI_PIPELINE_ID}"
+  artifact_path: "test-results/spatial-results.json"
+  invariants_contract: "docs/spatialguard/INVARIANTS.md"
+
+# 3-Stage Logical Agent Flow
+steps:
+  # Stage 1: Spatial Impact Analysis (Agent 1)
+  - name: spatial_impact_analysis
+    type: agent
+    role: "Spatial Impact Agent"
+    description: "Inspects merge request diffs and changed files to identify affected spatial invariants."
+    inputs:
+      changed_files: "${gitlab.merge_request.changed_files}"
+      diff: "${gitlab.merge_request.diff}"
+      invariants_spec: "${context.invariants_contract}"
+    tools:
+      - repository.read_file
+      - repository.list_files
+    prompt: |
+      You are the SpatialGuard Spatial Impact Agent.
+      Your goal is to inspect the changed files and diffs in the merge request:
+      - Changed files: ${gitlab.merge_request.changed_files}
+      - Review docs/spatialguard/INVARIANTS.md to map changed modules to spatial invariants (INV-OPENING-001, INV-INTERCHANGE-001, INV-ROOM-001).
+      - Do not guess based on generic names. Inspect actual modified functions and symbols.
+      - If non-spatial files (docs, styles, i18n) were modified, mark isSpatialChange = false and risk = NEGLIGIBLE.
+      - If core geometry files (types.ts, planOpening.ts, interchange.ts, roomDetection.ts) were modified, determine appropriate risk (CRITICAL/HIGH/MEDIUM).
+      - Output a structured SpatialImpactAssessment JSON.
+    output_key: impact_assessment
+
+  # Stage 2: Spatial Evidence Investigation (Agent 2)
+  - name: spatial_evidence_investigation
+    type: agent
+    role: "Spatial Evidence Investigator"
+    description: "Retrieves and inspects actual spatial test results artifact and diagnoses failures."
+    depends_on: [spatial_impact_analysis]
+    inputs:
+      impact_assessment: "${steps.spatial_impact_analysis.outputs.impact_assessment}"
+      artifact_path: "${context.artifact_path}"
+      pipeline_id: "${context.pipeline_id}"
+      commit_sha: "${context.commit_sha}"
+    tools:
+      - ci.get_job_artifact
+      - repository.read_file
+    prompt: |
+      You are the SpatialGuard Spatial Evidence Investigator.
+      Your goal is to inspect the actual test evidence produced by CI:
+      - Retrieve the test artifact: test-results/spatial-results.json for pipeline ${context.pipeline_id}.
+      - Validate that the report exists, is valid JSON, and corresponds to commit ${context.commit_sha}.
+      - If the artifact is missing, malformed, or stale, explicitly report verificationStatus as MISSING_EVIDENCE, MALFORMED_EVIDENCE, or STALE_EVIDENCE.
+      - If test failures exist, extract the exact invariant ID, failed test name, expected vs actual values, deltas, and units.
+      - Correlate any failures with the changed files identified in the Spatial Impact Assessment: ${steps.spatial_impact_analysis.outputs.impact_assessment}.
+      - Provide a grounded diagnosis of the suspected cause without inventing facts.
+      - Output a structured SpatialInvestigationReport JSON.
+    output_key: investigation_report
+
+  # Stage 3: Spatial Release Assessment (Agent 3)
+  - name: spatial_release_assessment
+    type: agent
+    role: "Spatial Release Assessment Agent"
+    description: "Synthesizes impact analysis and test evidence into an authoritative release readiness assessment."
+    depends_on: [spatial_evidence_investigation]
+    inputs:
+      impact_assessment: "${steps.spatial_impact_analysis.outputs.impact_assessment}"
+      investigation_report: "${steps.spatial_evidence_investigation.outputs.investigation_report}"
+    tools:
+      - merge_request.create_note
+    prompt: |
+      You are the SpatialGuard Spatial Release Assessment Agent.
+      Synthesize the findings from earlier stages into an evidence-backed release readiness assessment:
+      - Impact Assessment: ${steps.spatial_impact_analysis.outputs.impact_assessment}
+      - Investigation Report: ${steps.spatial_evidence_investigation.outputs.investigation_report}
+      
+      Determine the release status strictly based on evidence:
+      1. READY_FOR_FURTHER_REVIEW: All required spatial checks passed, no blocking geometric defects detected. Note: This indicates readiness for human peer review, NOT automatic production deployment.
+      2. BLOCKED: A spatial invariant failed, critical regression was detected, or a required safety gate was violated.
+      3. INCONCLUSIVE: Evidence is missing, corrupted, stale, or does not cover the impacted invariants.
+      
+      Post a structured, concise markdown assessment on Merge Request !${context.mr_iid} detailing:
+      - Status header with emoji indicator
+      - Impacted spatial invariants
+      - Verification summary (total tests, passed, failed)
+      - Blocking findings with exact delta metrics (if any)
+      - Recommended developer action
+      - Clear explicit limitations (supervised autonomy; human approval required).
+    output_key: release_assessment

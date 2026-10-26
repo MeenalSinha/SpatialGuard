@@ -346,8 +346,28 @@ npm run test:spatial
 This generates machine-readable test evidence in:
 - `test-results/spatial-results.json` (Structured Vitest JSON report containing test status, delta measurements, and assertion evidence)
 
+### GitLab Duo Agent Platform Workflow (Phase 2 Implemented)
+
+SpatialGuard connects deterministic spatial verification to **GitLab Duo Agent Platform** via a 3-stage agentic workflow:
+
+1. **Spatial Impact Agent (`src/lib/spatialguard/agent/impactAnalyzer.ts`):**  
+   Inspects merge request diffs and changed symbols, mapping them to affected spatial invariants and computing a risk classification (`CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, `NEGLIGIBLE`).
+2. **Spatial Evidence Investigator (`src/lib/spatialguard/agent/evidenceInvestigator.ts`):**  
+   Ingests CI test report artifacts (`test-results/spatial-results.json`), validates artifact freshness, and diagnoses root causes with exact metric deltas (e.g. wall overflow amounts or area discrepancies).
+3. **Spatial Release Assessor (`src/lib/spatialguard/agent/releaseAssessor.ts`):**  
+   Synthesizes impact and test evidence into an authoritative engineering advisory:
+   - `READY_FOR_FURTHER_REVIEW`: All spatial checks verified and passed (ready for human code review).
+   - `BLOCKED`: A spatial invariant failed or geometric regression was detected.
+   - `INCONCLUSIVE`: Test evidence is missing, corrupted, or stale.
+
+- **GitLab Duo Custom Flow:** Defined in [`.gitlab/duo/flows/spatialguard-investigate.yml`](.gitlab/duo/flows/spatialguard-investigate.yml)
+- **Agent Configuration:** Defined in [`.gitlab/duo/agent-config.yml`](.gitlab/duo/agent-config.yml)
+- **GitLab CI/CD Job:** Configured in [`.gitlab-ci.yml`](.gitlab-ci.yml)
+- **Full Architecture & Setup:** See [docs/spatialguard/PHASE2_AGENT_ARCHITECTURE.md](docs/spatialguard/PHASE2_AGENT_ARCHITECTURE.md).
+
 ### Roadmap & Planned Capabilities (Future Phases)
 
-- **Phase 2 (GitLab Duo Agent Platform Orchestration):** Automated change-impact analysis, automated triggering of spatial invariants in GitLab CI/CD, and agentic failure investigation.
-- **Phase 3 (Automated Spatial Remediation & Release Gates):** Agent-proposed geometric patch generation, regression validation, and release gate certification.
+- **Phase 3 (Bounded Geometric Remediation):** Agent-proposed corrective patches for failed invariants (e.g. auto-clamping opening positions or snapping misaligned endpoints) validated by regression testing.
+- **Phase 4 (Automated Release Gates & Promotion):** Complete release verification pipeline and staging gate orchestration.
+
 

@@ -1,0 +1,63 @@
+# GitLab CI/CD Pipeline Configuration for SpatialGuard
+# Project: SpatialGuard — Every change has a geometry. Every release needs proof.
+
+stages:
+  - build
+  - test
+  - verify
+
+default:
+  image: node:22-bookworm
+  before_script:
+    - node --version
+    - npm --version
+
+# Cache node_modules based on package-lock.json
+cache:
+  key:
+    files:
+      - package-lock.json
+  paths:
+    - .npm/
+    - node_modules/
+
+# 1. Standard build validation
+build:
+  stage: build
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm run check
+    - npm run build
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# 2. Baseline unit test suite
+unit-tests:
+  stage: test
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm test
+  allow_failure: true # Existing environment tests (e.g., Windows CRLF skill-examples baseline)
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# 3. Dedicated SpatialGuard verification job
+spatial-verification:
+  stage: verify
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm run test:spatial
+  artifacts:
+    name: "spatial-verification-${CI_COMMIT_REF_SLUG}-${CI_COMMIT_SHORT_SHA}"
+    when: always # Always retain artifacts so Duo Agent can investigate failures
+    expire_in: 7 days
+    paths:
+      - test-results/spatial-results.json
+    reports:
+      junit: test-results/junit.xml # Vitest JUnit compatible if configured
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'

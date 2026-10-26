@@ -1,0 +1,35 @@
+# GitLab Duo Agent Platform — Project Agent Configuration
+# Project: SpatialGuard
+# Documentation: https://docs.gitlab.com/user/duo_agent_platform/flows/
+
+version: "1.0"
+agent:
+  name: "SpatialGuard Agent"
+  autonomy_level: "supervised"
+  default_branch: "main"
+
+permissions:
+  repository:
+    read: true
+    write: false
+  ci_cd:
+    read_artifacts: true
+    read_jobs: true
+    trigger_pipelines: false
+  merge_requests:
+    read: true
+    create_notes: true
+    merge: false
+  production:
+    deploy: false
+    admin: false
+
+safety_boundaries:
+  - "Agents must never autonomously merge a merge request or push directly to main."
+  - "Agents must never deploy code to staging or production."
+  - "Agents must never modify release gates or suppress failing test results."
+  - "Human approval is strictly required for code merge and deployment."
+
+flows:
+  default: "spatialguard-investigate"
+  directory: ".gitlab/duo/flows"
