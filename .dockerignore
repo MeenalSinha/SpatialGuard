@@ -1,0 +1,12 @@
+node_modules
+.git
+.github
+.gitlab
+.svelte-kit
+build
+test-results
+playwright-report
+tests
+.gemini
+*.log
+npm-debug.log*
