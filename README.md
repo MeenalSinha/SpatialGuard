@@ -315,3 +315,39 @@ see [docs/assistant-shares.md](docs/assistant-shares.md).
 A separate `/render-lab` page tests Blender-prepared GLB scenes with Three.js
 interactive rendering and progressive GPU path tracing. It reads local files
 without uploading them. See [developer setup and limitations](docs/render-lab.md).
+
+---
+
+## 🛡️ SpatialGuard Quality Engineering
+
+> *Every change has a geometry. Every release needs proof.*
+
+**SpatialGuard** is an AI-orchestrated quality engineering and spatial verification core built for OpenPlan3D. While web applications typically rely on unit tests and visual screenshots, spatial applications introduce unique failure modes where plans compile and pass basic tests yet produce invalid geometry (e.g., doors overflowing wall endpoints, corrupted matrix conversions during interchange export, or collapsed room areas).
+
+### Implemented Spatial Invariants (Phase 1)
+
+1. **`INV-OPENING-001` (Opening Attachment & Boundary Containment):**  
+   Verifies that every door and window is anchored to a valid host wall on the same floor, has positive width $\le L_{wall}$, and that its physical jamb span $[\text{center} - w/2, \text{center} + w/2]$ is strictly contained within $[0, L_{wall}]$ without overflowing wall corners.
+2. **`INV-INTERCHANGE-001` (Prepared RoomPlan Spatial Conservation):**  
+   Verifies that exporting to prepared RoomPlan JSON (`projectToPreparedRoomPlan`) and re-importing (`createProjectFromRoomPlan`) strictly conserves wall segment lengths, relative opening parameters, opening widths, and reconstructed room areas against independent analytical expectations.
+3. **`INV-ROOM-001` (Room Boundary Enclosure & Area Non-Degeneracy):**  
+   Verifies that planar closed loops detect exact mathematical room areas, and that broken wall perimeters deterministically invalidate enclosure.
+
+For full contract specifications and mathematical definitions, see [docs/spatialguard/INVARIANTS.md](docs/spatialguard/INVARIANTS.md) and the baseline audit in [SPATIALGUARD_BASELINE.md](SPATIALGUARD_BASELINE.md).
+
+### Running Spatial Verification
+
+Execute the dedicated spatial invariant test suite independently:
+
+```bash
+npm run test:spatial
+```
+
+This generates machine-readable test evidence in:
+- `test-results/spatial-results.json` (Structured Vitest JSON report containing test status, delta measurements, and assertion evidence)
+
+### Roadmap & Planned Capabilities (Future Phases)
+
+- **Phase 2 (GitLab Duo Agent Platform Orchestration):** Automated change-impact analysis, automated triggering of spatial invariants in GitLab CI/CD, and agentic failure investigation.
+- **Phase 3 (Automated Spatial Remediation & Release Gates):** Agent-proposed geometric patch generation, regression validation, and release gate certification.
+

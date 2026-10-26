@@ -18,6 +18,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest run",
+		"test:spatial": "vitest run tests/spatialguard --reporter=default --reporter=json --outputFile=test-results/spatial-results.json",
 		"test:browser": "playwright test",
 		"test:watch": "vitest",
 		"benchmark:viewer": "playwright test --config=playwright.benchmark.config.ts",
