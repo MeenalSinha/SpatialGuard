@@ -365,9 +365,26 @@ SpatialGuard connects deterministic spatial verification to **GitLab Duo Agent P
 - **GitLab CI/CD Job:** Configured in [`.gitlab-ci.yml`](.gitlab-ci.yml)
 - **Full Architecture & Setup:** See [docs/spatialguard/PHASE2_AGENT_ARCHITECTURE.md](docs/spatialguard/PHASE2_AGENT_ARCHITECTURE.md).
 
+### Autonomous Remediation & Regression Verification (Phase 3 Implemented)
+
+SpatialGuard autonomously investigates spatial regressions, formulates targeted corrective patches, and verifies them with paired regression tests:
+
+1. **Failure Classification (`src/lib/spatialguard/remediation/classifier.ts`):**  
+   Categorizes pipeline events into 7 distinct cases, distinguishing confirmed geometry regressions from non-spatial, environmental, stale, or already-resolved failures.
+2. **Root Cause Analysis (`src/lib/spatialguard/remediation/investigator.ts`):**  
+   Analyzes geometric failure mechanisms (e.g. wall interval overflow, matrix precision loss, unclosed boundary polygons) with confirmed observations and hypothesis tracking.
+3. **Bounded Patch Synthesis & Regression Tests (`src/lib/spatialguard/remediation/generator.ts`):**  
+   Produces minimal unified diffs and pairs them with independent Vitest regression tests that fail on defective geometry and pass on corrected code.
+4. **Finite Retry Bounds & Idempotency (`src/lib/spatialguard/remediation/loopPrevention.ts`):**  
+   Enforces a strict retry limit (max 3 attempts) and SHA-based idempotency keys to prevent recursive pipeline loops.
+5. **Supervised Autonomy & Reviewable Output (`src/lib/spatialguard/remediation/remediator.ts`):**  
+   Renders explicit terminal statuses (`FIXED_AND_VERIFIED`, `PATCH_PROPOSED_UNVERIFIED`, `UNRESOLVED`, `BLOCKED`, `INCONCLUSIVE`). Patches are prepared for human peer review—automated merging and direct pushes to `main` are strictly forbidden.
+
+- **Remediation Specification & Architecture:** See [docs/spatialguard/PHASE3_REMEDIATION.md](docs/spatialguard/PHASE3_REMEDIATION.md).
+- **Remediation Test Suite:** Verified via `tests/spatialguard/remediation.test.ts` (12 adversarial & functional scenarios).
+
 ### Roadmap & Planned Capabilities (Future Phases)
 
-- **Phase 3 (Bounded Geometric Remediation):** Agent-proposed corrective patches for failed invariants (e.g. auto-clamping opening positions or snapping misaligned endpoints) validated by regression testing.
-- **Phase 4 (Automated Release Gates & Promotion):** Complete release verification pipeline and staging gate orchestration.
+- **Phase 4 (Automated Release Gates & Promotion):** Complete release verification pipeline, cryptographic evidence bundles, staging environment promotion, and supervised production release gating.
 
 

@@ -106,3 +106,33 @@ steps:
       - Recommended developer action
       - Clear explicit limitations (supervised autonomy; human approval required).
     output_key: release_assessment
+
+  # Stage 4: Spatial Bounded Remediation (Agent 4)
+  - name: spatial_bounded_remediation
+    type: agent
+    role: "Spatial Remediation Agent"
+    description: "Autonomously investigates eligible spatial regressions, generates bounded candidate patches with paired regression tests, executes verification gates, and prepares reviewable proposals."
+    depends_on: [spatial_evidence_investigation, spatial_release_assessment]
+    condition: "steps.spatial_release_assessment.outputs.release_assessment.status == 'BLOCKED'"
+    inputs:
+      investigation_report: "${steps.spatial_evidence_investigation.outputs.investigation_report}"
+      release_assessment: "${steps.spatial_release_assessment.outputs.release_assessment}"
+      remediation_policy: "src/lib/spatialguard/remediation/types.ts"
+    tools:
+      - repository.read_file
+      - repository.create_branch
+      - repository.commit_changes
+      - merge_request.create_note
+    prompt: |
+      You are the SpatialGuard Spatial Remediation Agent.
+      When spatial invariants fail, execute bounded, reproducible remediation:
+      1. Classify the failure (Cases 1-7). Only confirmed spatial invariant failures may proceed.
+      2. If eligible, inspect root cause and synthesize minimal patch strictly within allowed paths.
+      3. Never touch protected files (.gitlab-ci.yml, package.json, LICENSE, INVARIANTS.md).
+      4. Always synthesize a paired deterministic regression test that demonstrates the defect.
+      5. Enforce bounded retry policy (max 3 attempts). Prevent recursive loops using idempotency keys.
+      6. Run verification commands (npm run test:spatial, npm run check).
+      7. Render explicit status: FIXED_AND_VERIFIED, PATCH_PROPOSED_UNVERIFIED, UNRESOLVED, BLOCKED, or INCONCLUSIVE.
+      8. Post the unified diff and regression test to Merge Request !${context.mr_iid} for human review.
+      9. NEVER push to main or merge automatically. Supervised autonomy requires human sign-off.
+    output_key: remediation_report

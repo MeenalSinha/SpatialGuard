@@ -12,6 +12,7 @@ permissions:
   repository:
     read: true
     write: false
+    create_remediation_branch: true
   ci_cd:
     read_artifacts: true
     read_jobs: true
@@ -19,15 +20,30 @@ permissions:
   merge_requests:
     read: true
     create_notes: true
+    create_draft_mr: true
     merge: false
   production:
     deploy: false
     admin: false
 
+remediation_policy:
+  max_attempts: 3
+  allowed_paths:
+    - "src/lib/geometry/**"
+    - "src/lib/utils/**"
+    - "tests/spatialguard/**"
+  forbidden_paths:
+    - ".gitlab/**"
+    - ".gitlab-ci.yml"
+    - "package.json"
+    - "LICENSE"
+    - "docs/spatialguard/INVARIANTS.md"
+
 safety_boundaries:
   - "Agents must never autonomously merge a merge request or push directly to main."
   - "Agents must never deploy code to staging or production."
   - "Agents must never modify release gates or suppress failing test results."
+  - "Automated patches must be proposed as reviewable unified diffs or isolated branches."
   - "Human approval is strictly required for code merge and deployment."
 
 flows:

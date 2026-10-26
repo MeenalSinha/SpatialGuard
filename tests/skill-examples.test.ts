@@ -7,7 +7,7 @@ import { getCatalogItem } from '$lib/utils/furnitureCatalog';
 
 // The skill teaches agents to author plan files; its examples and catalog table must track the code.
 const dir = 'docs/skills/openplan3d-plan-authoring';
-const read = (name: string) => readFileSync(`${dir}/${name}`, 'utf8');
+const read = (name: string) => readFileSync(`${dir}/${name}`, 'utf8').replace(/\r\n/g, '\n');
 const example = (name: string) => JSON.parse(read(`examples/${name}`));
 const skill = read('SKILL.md');
 const byName = <T extends { name: string }>(rooms: T[]) => Object.fromEntries(rooms.map(room => [room.name, room])) as Record<string, T>;
