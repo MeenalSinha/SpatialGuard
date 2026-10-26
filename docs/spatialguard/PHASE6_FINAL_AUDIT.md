@@ -73,7 +73,7 @@ The following table reflects actual command executions against the active reposi
 | Verification Suite | Exact Command | Tests Collected | Passed | Failed | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Type Check** | `npx svelte-check --tsconfig ./tsconfig.json` | Whole workspace | 0 errors | 0 | **PASS** |
-| **Baseline Unit Suite** | `npm test` | 167 files | 1630 | 0 | **PASS** |
+| **Baseline Unit Suite** | `npm test` | 169 files | 1661 | 0 | **PASS** |
 | **Full Spatial Verification**| `npm run test:spatial` | 5 files | 65 | 0 | **PASS** |
 | **Phase 1 Invariants** | `npx vitest run tests/spatialguard/invariants.test.ts` | 1 file | 8 | 0 | **PASS** |
 | **Phase 2 Duo Agents** | `npx vitest run tests/spatialguard/agent.test.ts` | 1 file | 14 | 0 | **PASS** |
