@@ -239,16 +239,18 @@ The agent workflow was validated through an automated Vitest suite ([tests/spati
 
 ## 7. Remaining Blockers & GitLab Manual Setup Instructions
 
-### 7.1 Identified Environmental Blockers
-- **Git Remote:** The local workspace is currently connected to GitHub (`https://github.com/MeenalSinha/SpatialGuard`). No GitLab remote, project ID, or Duo Enterprise API tokens are present in the local shell.
-- **Remote Flow Registration:** GitLab Duo custom flows cannot be registered or triggered until the repository is mirrored or imported to a GitLab instance with the **GitLab Duo Agent Platform** feature enabled.
+### 7.1 Environmental Status & Runner Configuration
+- **Git Remotes:** Both `origin` (`https://github.com/MeenalSinha/SpatialGuard`) and `gitlab` (`https://gitlab.com/MeenalSinha/SpatialGuard.git`) are configured and synchronized at `main`.
+- **GitLab Project:** [MeenalSinha/SpatialGuard](https://gitlab.com/MeenalSinha/SpatialGuard) (Project ID: `88114081`).
+- **CI/CD Runner:** Local project runner `SpatialGuard-Local-Runner` (v19.5.1, shell: powershell) registered and connected to bypass GitLab SaaS shared runner credit-card requirements.
+- **Remote Flow Registration:** GitLab Duo custom flows can be activated via GitLab Duo Agent Platform in the GitLab project UI.
 
 ### 7.2 Manual Setup Procedure for GitLab
 
-1. **Push Repository to GitLab:**
+1. **Verify Local Runner:**
+   The local project runner runs as a background process executing `.gitlab-ci.yml` jobs locally without requiring cloud credit card verification:
    ```bash
-   git remote add gitlab https://gitlab.com/<username-or-group>/SpatialGuard.git
-   git push -u gitlab main
+   & "C:\Users\Meenal Sinha\gitlab-runner\gitlab-runner.exe" run
    ```
 2. **Enable GitLab Duo Agent Platform:**
    - In GitLab, navigate to **Settings > General > GitLab Duo**.
